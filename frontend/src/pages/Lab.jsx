@@ -1,8 +1,8 @@
 const Lab = () => {
   const tests = [
-    { id: 'LAB-001', patient: 'Aziza Karimova', test: 'Complete Blood Count', status: 'completed', date: '2024-01-20' },
-    { id: 'LAB-002', patient: 'Bobur Tursunov', test: 'Urinalysis', status: 'pending', date: '2024-01-21' },
-    { id: 'LAB-003', patient: 'Dilnoza Saidova', test: 'Lipid Panel', status: 'in-progress', date: '2024-01-21' },
+    { id: 'LAB-001', patient: 'Aziza Karimova', test: 'Complete Blood Count', status: 'completed', date: '2026-01-20' },
+    { id: 'LAB-002', patient: 'Bobur Tursunov', test: 'Urinalysis', status: 'pending', date: '2026-01-21' },
+    { id: 'LAB-003', patient: 'Dilnoza Saidova', test: 'Lipid Panel', status: 'in-progress', date: '2026-01-21' },
   ];
 
   return (

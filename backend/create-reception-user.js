@@ -18,14 +18,14 @@ const createReceptionUser = async () => {
       console.log('Role:', existingUser.role);
       
       // Update password if needed
-      existingUser.password = 'qabulxona2024';
+      existingUser.password = 'qabulxona2026';
       await existingUser.save();
-      console.log('Password updated to: qabulxona2024');
+      console.log('Password updated to: qabulxona2026');
     } else {
       // Create new reception user
       const receptionUser = new Staff({
         username: 'qabulxona',
-        password: 'qabulxona2024',
+        password: 'qabulxona2026',
         email: 'qabulxona@bolajon.uz',
         first_name: 'Qabulxona',
         last_name: 'Xodimi',
@@ -39,7 +39,7 @@ const createReceptionUser = async () => {
       await receptionUser.save();
       console.log('✅ Reception user created successfully!');
       console.log('Username: qabulxona');
-      console.log('Password: qabulxona2024');
+      console.log('Password: qabulxona2026');
       console.log('Role: receptionist');
     }
 

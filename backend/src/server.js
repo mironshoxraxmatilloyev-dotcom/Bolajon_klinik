@@ -198,6 +198,10 @@ connectMongoDB().then(() => {
     } else {
       logger.warn('⚠️  Running without Redis cache');
     }
+    
+    // Start treatment notification service
+    startTreatmentNotificationService();
+    logger.info('🔔 Treatment notification service started');
   });
 }).catch(error => {
   logger.error('Failed to connect to MongoDB:', error);

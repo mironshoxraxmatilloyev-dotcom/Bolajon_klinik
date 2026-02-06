@@ -115,7 +115,7 @@ export default function SanitarPanel() {
 
   const getStatusColor = (s) => ({ tozalanmagan: 'bg-red-100 text-red-700 border-red-300', tozalanmoqda: 'bg-yellow-100 text-yellow-700 border-yellow-300', toza: 'bg-green-100 text-green-700 border-green-300' }[s] || 'bg-gray-100 text-gray-700');
   const getStatusIcon = (s) => ({ tozalanmagan: 'warning', tozalanmoqda: 'cleaning_services', toza: 'check_circle' }[s] || 'help');
-  const getRoomType = (t) => ({ palata: 'Palata', operatsiya_xonasi: 'Operatsiya', laboratoriya: 'Laboratoriya', hojatxona: 'Hojatxona' }[t] || t);
+  const getDepartmentName = (dept) => dept === 'inpatient' ? 'Statsionar' : dept === 'ambulator' ? 'Ambulatorxona' : dept;
   const formatTime = (d) => { if (!d) return '-'; const diff = Math.floor((new Date() - new Date(d)) / 60000); return diff < 1 ? 'Hozir' : diff < 60 ? `${diff} daq` : diff < 1440 ? `${Math.floor(diff/60)} soat` : `${Math.floor(diff/1440)} kun`; };
   const filteredRooms = rooms.filter(r => r.room_number.toLowerCase().includes(searchQuery.toLowerCase()) || r.area.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -166,7 +166,7 @@ export default function SanitarPanel() {
             {areas.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">
                 <h3 className="text-base sm:text-lg font-bold mb-3 flex items-center gap-2 text-gray-900 dark:text-white"><span className="material-symbols-outlined">location_on</span>Sizning hududlaringiz</h3>
-                <div className="flex flex-wrap gap-2">{areas.map((a, i) => <div key={i} className="bg-green-50 dark:bg-green-900/30 border-2 border-green-200 dark:border-green-700 px-3 py-2 rounded-lg"><p className="text-sm font-bold text-green-700 dark:text-green-300">{a.area}</p>{a.floor && <p className="text-xs text-green-600 dark:text-green-400">{a.floor}-qavat</p>}</div>)}</div>
+                <div className="flex flex-wrap gap-2">{areas.map((a, i) => <div key={i} className="bg-green-50 dark:bg-green-900/30 border-2 border-green-200 dark:border-green-700 px-3 py-2 rounded-lg"><p className="text-sm font-bold text-green-700 dark:text-green-300">{a.area}</p>{a.department && <p className="text-xs text-green-600 dark:text-green-400">{a.department === 'inpatient' ? 'Statsionar' : 'Ambulatorxona'}</p>}</div>)}</div>
               </div>
             )}
           </>
@@ -214,11 +214,10 @@ export default function SanitarPanel() {
                     {filteredRooms.map(r => (
                       <div key={r.id} className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-4 sm:p-5 hover:shadow-lg transition-all ${r.priority === 'favqulodda' ? 'border-red-500 shadow-red-100 dark:shadow-red-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
                         <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1 min-w-0"><h3 className="text-xl sm:text-2xl font-black truncate text-gray-900 dark:text-white">{r.room_number}</h3><p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">{getRoomType(r.room_type)}</p></div>
+                          <div className="flex-1 min-w-0"><h3 className="text-xl sm:text-2xl font-black truncate text-gray-900 dark:text-white">{r.room_number}</h3><p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">{getDepartmentName(r.department)}</p></div>
                           <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold border-2 flex items-center gap-1 ${getStatusColor(r.status)}`}><span className="material-symbols-outlined text-sm">{getStatusIcon(r.status)}</span><span className="hidden sm:inline">{r.status}</span></span>
                         </div>
                         <div className="space-y-1 sm:space-y-2 mb-3 sm:mb-4 text-xs sm:text-sm">
-                          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><span className="material-symbols-outlined text-sm sm:text-base">location_on</span><span className="truncate">{r.area} • {r.floor}-qavat</span></div>
                           {r.last_cleaned_at && <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><span className="material-symbols-outlined text-sm sm:text-base">schedule</span><span>{formatTime(r.last_cleaned_at)}</span></div>}
                           {r.requires_disinfection && <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 px-2 py-1 rounded"><span className="material-symbols-outlined text-sm sm:text-base">science</span><span className="font-semibold text-xs">Dezinfeksiya</span></div>}
                           {r.priority === 'favqulodda' && <div className="flex items-center gap-2 text-red-600 bg-red-50 px-2 py-1 rounded animate-pulse"><span className="material-symbols-outlined text-sm sm:text-base">emergency</span><span className="font-bold text-xs">FAVQULODDA</span></div>}
@@ -445,13 +444,9 @@ export default function SanitarPanel() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                               <h3 className="text-base sm:text-xl font-bold truncate text-gray-900 dark:text-white">{h.room_number}</h3>
-                              <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded whitespace-nowrap">{getRoomType(h.room_type)}</span>
+                              <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded whitespace-nowrap">{getDepartmentName(h.department)}</span>
                             </div>
                             <div className="space-y-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                              <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-sm">location_on</span>
-                                <span className="truncate">{h.area} • {h.floor}-qavat</span>
-                              </div>
                               <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm">schedule</span>
                                 <span>{new Date(h.completed_at).toLocaleString('uz-UZ', {

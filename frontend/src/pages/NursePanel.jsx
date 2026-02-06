@@ -4,6 +4,7 @@ import nurseService from '../services/nurseService';
 import doctorNurseService from '../services/doctorNurseService';
 import communicationService from '../services/communicationService';
 import toast, { Toaster } from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 export default function NursePanel() {
   const { user } = useAuth();
@@ -47,6 +48,36 @@ export default function NursePanel() {
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [activeTab, selectedFloor, selectedStatus]);
+
+  // Audio notification setup
+  useEffect(() => {
+    // Create audio context for alarm sound
+    // WebSocket connection for real-time notifications (faqat toast xabarlari)
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    const socket = io(apiUrl.replace('/api/v1', ''));
+
+    // Listen for nurse calls
+    socket.on('nurse-call', (data) => {
+      console.log('Nurse call received:', data);
+      toast.success(`🔔 ${data.patientName} chaqiryapti! Xona: ${data.roomNumber}`, {
+        duration: 10000,
+        icon: '🚨'
+      });
+    });
+
+    // Listen for treatment notifications
+    socket.on('treatment-notification', (data) => {
+      console.log('Treatment notification received:', data);
+      toast.success(`⏰ Muolaja vaqti! ${data.patientName} - ${data.medicationName}`, {
+        duration: 10000,
+        icon: '💊'
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const loadData = async () => {
     try {
@@ -211,12 +242,14 @@ export default function NursePanel() {
       <Toaster position="top-right" />
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl p-6 text-white shadow-xl">
-        <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined text-5xl">medical_services</span>
-          <div>
-            <h1 className="text-3xl font-black">HAMSHIRA PANELI</h1>
-            <p className="text-lg opacity-90">Xush kelibsiz, {user?.first_name || 'Hamshira'}</p>
+      <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl p-4 sm:p-6 text-white shadow-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <span className="material-symbols-outlined text-4xl sm:text-5xl">medical_services</span>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black">HAMSHIRA PANELI</h1>
+              <p className="text-sm sm:text-lg opacity-90">Xush kelibsiz, {user?.first_name || 'Hamshira'}</p>
+            </div>
           </div>
         </div>
       </div>

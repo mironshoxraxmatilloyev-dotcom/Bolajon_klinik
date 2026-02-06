@@ -987,7 +987,7 @@ async function handleLogout(chatId, session) {
 // Hamshirani chaqirish
 async function handleCallNurse(chatId, session) {
   try {
-    await bot.sendMessage(chatId, '⏳ Hamshiralar chaqirilmoqda...');
+    await bot.sendMessage(chatId, '⏳ Hamshira chaqirilmoqda...');
     
     const patientId = session.patient.id || session.patient._id;
     
@@ -1021,16 +1021,12 @@ async function handleCallNurse(chatId, session) {
     });
     
     if (callResponse.data.success) {
-      let successMessage = `✅ *Hamshiralar chaqirildi!*\n\n`;
+      let successMessage = `✅ *Hamshira chaqirildi!*\n\n`;
       
       if (admission.department) {
         successMessage += `🏥 Bo'lim: ${admission.department}\n`;
       }
-      successMessage += `🚪 Xona: ${admission.room_number}`;
-      if (admission.room_floor) {
-        successMessage += ` (${admission.room_floor}-qavat)`;
-      }
-      successMessage += `\n`;
+      successMessage += `🚪 Xona: ${admission.room_number}\n`;
       successMessage += `🛏 Ko'rpa: ${admission.bed_number}\n\n`;
       successMessage += `⏰ ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n\n`;
       successMessage += `💡 Hamshira tez orada keladi.`;

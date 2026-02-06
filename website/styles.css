@@ -57,6 +57,20 @@ body {
     padding: 1rem 20px;
 }
 
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nav-brand .logo {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.15);
+}
+
 .nav-brand h1 {
     color: var(--primary-color);
     font-size: 1.5rem;

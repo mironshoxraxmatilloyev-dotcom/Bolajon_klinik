@@ -253,7 +253,7 @@ router.get('/patient/:patientId/admission', async (req, res) => {
           room_number: admission.room_id?.room_number || admission.room_number,
           room_floor: admission.room_id?.floor,
           bed_number: admission.bed_id?.bed_number || admission.bed_number,
-          department: admission.room_id?.department || 'Statsionar'
+          department: admission.room_id?.department === 'inpatient' ? 'Statsionar' : 'Ambulatorxona'
         }
       });
     }
@@ -309,15 +309,32 @@ router.post('/call-nurse', async (req, res) => {
     console.log('Room:', roomNumber, 'Floor:', roomFloor);
     console.log('Bed:', bedNumber);
     
-    // Find all nurses with telegram enabled
-    const nurses = await Staff.find({
-      role: 'nurse',
-      status: 'active',
-      telegram_chat_id: { $exists: true, $ne: null },
-      telegram_notifications_enabled: true
-    }).lean();
+    // Import TreatmentSchedule model
+    const TreatmentSchedule = (await import('../models/TreatmentSchedule.js')).default;
     
-    console.log(`📊 Found ${nurses.length} nurses with Telegram enabled`);
+    // Bemorning aktiv treatment'laridan hamshirani topish
+    const treatments = await TreatmentSchedule.find({
+      patient_id: patientId,
+      status: 'pending'
+    })
+      .populate('nurse_id', 'first_name last_name telegram_chat_id telegram_username telegram_notifications_enabled')
+      .sort({ created_at: -1 })
+      .limit(10)
+      .lean();
+    
+    console.log(`📊 Found ${treatments.length} active treatments for patient`);
+    
+    // Hamshiralarni to'plash (unique)
+    const nurseMap = new Map();
+    treatments.forEach(treatment => {
+      if (treatment.nurse_id && treatment.nurse_id.telegram_chat_id && treatment.nurse_id.telegram_notifications_enabled) {
+        nurseMap.set(treatment.nurse_id._id.toString(), treatment.nurse_id);
+      }
+    });
+    
+    const nurses = Array.from(nurseMap.values());
+    
+    console.log(`📊 Found ${nurses.length} assigned nurses with Telegram enabled`);
     
     // WebSocket orqali frontend'ga xabar yuborish
     if (global.io) {
@@ -335,11 +352,26 @@ router.post('/call-nurse', async (req, res) => {
     }
     
     if (nurses.length === 0) {
-      return res.json({
-        success: true,
-        message: 'Telegram ulangan hamshiralar topilmadi',
-        data: { notified_count: 0 }
-      });
+      console.log('⚠️ No assigned nurses found, falling back to all nurses');
+      
+      // Agar biriktirilgan hamshira bo'lmasa, barcha hamshiralarga yuborish
+      const allNurses = await Staff.find({
+        role: 'nurse',
+        status: 'active',
+        telegram_chat_id: { $exists: true, $ne: null },
+        telegram_notifications_enabled: true
+      }).lean();
+      
+      if (allNurses.length === 0) {
+        return res.json({
+          success: true,
+          message: 'Telegram ulangan hamshiralar topilmadi',
+          data: { notified_count: 0 }
+        });
+      }
+      
+      nurses.push(...allNurses);
+      console.log(`📊 Using ${nurses.length} nurses as fallback`);
     }
     
     const TelegramBot = (await import('node-telegram-bot-api')).default;
@@ -351,17 +383,13 @@ router.post('/call-nurse', async (req, res) => {
     message += `👤 *Bemor:* ${patientName}\n`;
     message += `📋 *Bemor №:* ${patientNumber}\n\n`;
     
-    // Bo'lim
+    // Bo'lim (Department)
     if (department) {
       message += `🏥 *Bo'lim:* ${department}\n`;
     }
     
-    // Xona
-    message += `🚪 *Xona:* ${roomNumber}`;
-    if (roomFloor) {
-      message += ` (${roomFloor}-qavat)`;
-    }
-    message += `\n`;
+    // Xona (without floor)
+    message += `🚪 *Xona:* ${roomNumber}\n`;
     
     // Ko'rpa
     message += `🛏 *Ko'rpa:* ${bedNumber}\n\n`;
@@ -371,7 +399,7 @@ router.post('/call-nurse', async (req, res) => {
     message += `⚡️ *TEZKOR YORDAM KERAK!* ⚡️\n`;
     message += `💡 Iltimos, bemorga darhol yordam bering!`;
     
-    // Barcha hamshiralarga yuborish
+    // Biriktirilgan hamshiralarga yuborish
     let notifiedCount = 0;
     for (const nurse of nurses) {
       try {

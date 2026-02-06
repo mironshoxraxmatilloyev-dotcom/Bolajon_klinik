@@ -5,8 +5,8 @@ export const config = {
   // Bot username (deep linking uchun)
   BOT_USERNAME: process.env.BOT_USERNAME || 'klinika_01_bot',
   
-  // Backend API URL
-  API_URL: process.env.API_URL || 'http://localhost:5001/api/v1',
+  // Backend API URL - environment'dan yoki default
+  API_URL: process.env.API_URL || process.env.VITE_API_URL || 'http://localhost:5001/api/v1',
   
   // Admin Telegram IDs (xabarlar uchun)
   ADMIN_IDS: process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [],

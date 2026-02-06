@@ -24,7 +24,7 @@ console.error = (...args) => {
 
 console.log('🚀 Starting Telegram Bot...');
 console.log('📱 Bot Token:', process.env.BOT_TOKEN ? 'Configured' : 'Using default');
-console.log('🌐 API URL:', process.env.API_URL || 'http://localhost:5000/api/v1');
+console.log('🌐 API URL:', process.env.API_URL || process.env.VITE_API_URL || 'http://localhost:5001/api/v1');
 console.log('📝 Logs are being saved to:', logFile);
 console.log('');
 console.log('✅ Bot is running and listening for messages...');

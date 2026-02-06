@@ -206,7 +206,7 @@ Javob:
 {
   "status": "ok",
   "database": "MongoDB",
-  "timestamp": "2024-02-04T12:00:00.000Z"
+  "timestamp": "2026-02-04T12:00:00.000Z"
 }
 ```
 

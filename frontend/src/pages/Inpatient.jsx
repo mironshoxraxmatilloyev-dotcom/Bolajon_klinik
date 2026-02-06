@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import inpatientRoomService from '../services/inpatientRoomService';
 import patientService from '../services/patientService';
 import toast, { Toaster } from 'react-hot-toast';
@@ -9,6 +9,13 @@ import { io } from 'socket.io-client';
 
 export default function Inpatient() {
   const { user } = useAuth();
+  
+  // Audio notification system for Inpatient (Statsionar)
+  const [audioEnabled, setAudioEnabled] = useState(() => {
+    return localStorage.getItem('inpatient_audio_enabled') === 'true';
+  });
+  const audioRef = useRef(null);
+  const audioTimeoutRef = useRef(null);
   
   // Role checking
   const userRole = user?.role?.name || user?.role_name;
@@ -55,6 +62,8 @@ export default function Inpatient() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [qrTicket, setQrTicket] = useState(null);
+  const [showTreatmentModal, setShowTreatmentModal] = useState(false);
+  const [treatmentNotification, setTreatmentNotification] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
   const showConfirm = (message, onConfirm, options = {}) => {
@@ -72,8 +81,12 @@ export default function Inpatient() {
   useEffect(() => {
     loadData();
     
+    // Audio ref'ni null qilib boshlash (audio fayl uchun)
+    audioRef.current = null;
+    
     // WebSocket ulanishi
-    const socket = io('http://localhost:5001');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    const socket = io(apiUrl.replace('/api/v1', ''));
     
     socket.on('connect', () => {
       console.log('✅ WebSocket connected');
@@ -81,6 +94,11 @@ export default function Inpatient() {
     
     socket.on('nurse-call', (data) => {
       console.log('🔔 Nurse call received:', data);
+      
+      // Ovoz chiqarish (agar yoqilgan bo'lsa - barcha chaqiruvlar uchun)
+      if (audioEnabled) {
+        playAlarmSound();
+      }
       
       // Qo'ng'iroqni map'ga qo'shish
       setNurseCallsMap(prev => {
@@ -117,10 +135,36 @@ export default function Inpatient() {
       }, 30000);
     });
     
+    // Treatment notification listener
+    socket.on('treatment-notification', (data) => {
+      console.log('⏰ Treatment notification received:', data);
+      
+      // Modal oynani ochish
+      setTreatmentNotification(data);
+      setShowTreatmentModal(true);
+      
+      // Ovoz chiqarish (agar yoqilgan bo'lsa)
+      if (audioEnabled) {
+        playAlarmSound();
+      }
+      
+      toast.success(`⏰ Muolaja vaqti! ${data.patientName} - ${data.medicationName}`, {
+        duration: 10000,
+        icon: '💊'
+      });
+    });
+    
     return () => {
       socket.disconnect();
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
-  }, []);
+  }, [audioEnabled]);
 
   // Qavat o'zgarganida faqat kerakli ma'lumotlarni yangilash
   useEffect(() => {
@@ -128,6 +172,70 @@ export default function Inpatient() {
       loadFloorData();
     }
   }, [selectedFloor]);
+
+  // Toggle audio notifications
+  const toggleAudio = (e) => {
+    e.preventDefault(); // Sahifa yangilanishini oldini olish
+    console.log('🔘 toggleAudio clicked, current state:', audioEnabled);
+    
+    const newState = !audioEnabled;
+    setAudioEnabled(newState);
+    localStorage.setItem('inpatient_audio_enabled', newState.toString());
+    
+    console.log('🔘 New audio state:', newState);
+    
+    if (newState) {
+      toast.success('🔊 Ovozli ogohlantirish yoqildi (Statsionar)');
+      // Test sound
+      console.log('🎵 Playing test sound...');
+      playAlarmSound();
+    } else {
+      toast.success('🔇 Ovozli ogohlantirish o\'chirildi (Statsionar)');
+    }
+  };
+
+  // Play alarm sound (audio fayl)
+  const playAlarmSound = () => {
+    console.log('🔊 playAlarmSound called');
+    
+    // Agar avvalgi ovoz o'ynayotgan bo'lsa, to'xtatish
+    if (audioRef.current) {
+      console.log('⏹ Stopping previous audio');
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Yangi audio obyekt yaratish
+    const audioPath = '/sounds/sound.mp3';
+    console.log('🎵 Creating audio with path:', audioPath);
+    
+    const audio = new Audio(audioPath);
+    audio.volume = 0.8; // 80% ovoz balandligi
+    audio.loop = true; // Takrorlansin
+    
+    audioRef.current = audio;
+    
+    // Ovozni boshlash
+    console.log('▶️ Attempting to play audio...');
+    audio.play()
+      .then(() => {
+        console.log('✅ Audio playing successfully!');
+        toast.success('🔊 Ovoz chiqmoqda...');
+      })
+      .catch(error => {
+        console.error('❌ Audio play error:', error);
+        toast.error('Ovozni chiqarib bo\'lmadi. Brauzer ruxsat bermagan bo\'lishi mumkin.');
+      });
+    
+    // 30 soniyadan keyin to'xtatish
+    audioTimeoutRef.current = setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        console.log('⏹ Alarm sound stopped after 30 seconds');
+      }
+    }, 30000); // 30 seconds
+  };
 
   const loadFloorData = async () => {
     try {
@@ -517,15 +625,36 @@ export default function Inpatient() {
       
       {/* SUCCESS BANNER */}
       <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-8 text-white shadow-2xl">
-        <div className="flex items-center gap-4 mb-4">
-          <span className="material-symbols-outlined text-6xl">check_circle</span>
-          <div>
-            <h1 className="text-4xl font-black flex items-center gap-3">
-              <span className="material-symbols-outlined text-5xl">verified</span>
-              YANGI STATSIONAR TIZIMI ISHLAYAPTI!
-            </h1>
-            <p className="text-xl mt-2">Vaqt: {new Date().toLocaleString('uz-UZ')}</p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <span className="material-symbols-outlined text-6xl">check_circle</span>
+            <div>
+              <h1 className="text-4xl font-black flex items-center gap-3">
+                <span className="material-symbols-outlined text-5xl">verified</span>
+                YANGI STATSIONAR TIZIMI ISHLAYAPTI!
+              </h1>
+              <p className="text-xl mt-2">Vaqt: {new Date().toLocaleString('uz-UZ')}</p>
+            </div>
           </div>
+          
+          {/* Audio Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleAudio}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
+              audioEnabled 
+                ? 'bg-white text-green-600 hover:bg-green-50' 
+                : 'bg-white/20 text-white hover:bg-white/30'
+            }`}
+            title={audioEnabled ? 'Ovozni o\'chirish' : 'Ovozni yoqish'}
+          >
+            <span className="material-symbols-outlined text-2xl">
+              {audioEnabled ? 'volume_up' : 'volume_off'}
+            </span>
+            <span>
+              {audioEnabled ? 'Ovoz yoqilgan' : 'Ovoz o\'chirilgan'}
+            </span>
+          </button>
         </div>
         <div className="grid grid-cols-4 gap-4 mt-6">
           <div className="bg-white/20 rounded-lg p-4">
@@ -722,6 +851,8 @@ export default function Inpatient() {
                                 hasMyTreatments={hasMyTreatments}
                                 admissionType="inpatient"
                                 isNurseCalling={nurseCallsMap.has(bedDetails.patient_id)}
+                                audioEnabled={audioEnabled}
+                                playAlarmSound={playAlarmSound}
                               >
                                 <div
                                   className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
@@ -1063,6 +1194,85 @@ export default function Inpatient() {
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
       />
+
+      {/* Treatment Notification Modal */}
+      {showTreatmentModal && treatmentNotification && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full animate-bounce-in">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 rounded-t-2xl text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center animate-pulse shadow-lg">
+                  <img src="/logo.svg" alt="Logo" className="w-12 h-12" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black">⏰ MUOLAJA VAQTI!</h2>
+                  <p className="text-sm opacity-90">Darhol yordam bering</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border-2 border-orange-200 dark:border-orange-800">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="material-symbols-outlined text-3xl text-orange-600">person</span>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Bemor</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{treatmentNotification.patientName}</p>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Bemor №: {treatmentNotification.patientNumber}
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border-2 border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="material-symbols-outlined text-3xl text-blue-600">medication</span>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Dori</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{treatmentNotification.medicationName}</p>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Doza: {treatmentNotification.dosage}
+                </div>
+              </div>
+
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border-2 border-purple-200 dark:border-purple-800">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-3xl text-purple-600">schedule</span>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Vaqt</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      {new Date(treatmentNotification.scheduledTime).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 bg-gray-50 dark:bg-gray-900 rounded-b-2xl flex gap-3">
+              <button
+                onClick={() => {
+                  setShowTreatmentModal(false);
+                  setTreatmentNotification(null);
+                  // Stop audio
+                  if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0;
+                  }
+                }}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg"
+              >
+                ✅ Tushundim
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

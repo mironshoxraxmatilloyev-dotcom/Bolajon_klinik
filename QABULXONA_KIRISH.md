@@ -13,7 +13,7 @@
 **URL:** `http://localhost:3000/reception-login`
 
 **Login:** `qabulxona`  
-**Parol:** `qabulxona2024`
+**Parol:** `qabulxona2026`
 
 ---
 
@@ -45,7 +45,7 @@
 **Sabab:** Login yoki parol xato yozilgan  
 **Yechim:** 
 - Login: `qabulxona` (kichik harflar, bo'sh joy yo'q)
-- Parol: `qabulxona2024` (kichik harflar, raqamlar)
+- Parol: `qabulxona2026` (kichik harflar, raqamlar)
 
 ---
 

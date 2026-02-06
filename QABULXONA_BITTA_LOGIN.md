@@ -19,7 +19,7 @@ Endi **HAMMASI BITTA JOYDAN** kiradi - `/login` sahifasidan!
 
 ```
 Login: qabulxona
-Parol: qabulxona2024
+Parol: qabulxona2026
 ```
 
 ---
@@ -32,7 +32,7 @@ Parol: qabulxona2024
 
 ### 2. Login va Parol
 - Login: `qabulxona`
-- Parol: `qabulxona2024`
+- Parol: `qabulxona2026`
 - "Kirish" tugmasini bosing
 
 ### 3. Avtomatik Yo'naltirish
@@ -60,7 +60,7 @@ MongoDB'ga qo'shildi:
 ```javascript
 {
   username: 'qabulxona',
-  password: 'qabulxona2024',
+  password: 'qabulxona2026',
   role: 'receptionist',
   first_name: 'Qabulxona',
   last_name: 'Xodimi',
@@ -133,7 +133,7 @@ if (!user || (user.role_name !== 'receptionist' && user.role?.name !== 'receptio
 | Laborant | lab1 | lab123 | /lab |
 | Dorixona | pharm1 | pharm123 | /pharmacy |
 | Sanitar | sanitar1 | sanitar123 | /sanitar |
-| **Qabulxona** | **qabulxona** | **qabulxona2024** | **/reception** |
+| **Qabulxona** | **qabulxona** | **qabulxona2026** | **/reception** |
 
 ---
 
@@ -143,7 +143,7 @@ if (!user || (user.role_name !== 'receptionist' && user.role?.name !== 'receptio
 ```
 1. http://localhost:3000/login ga o'ting
 2. Login: qabulxona
-3. Parol: qabulxona2024
+3. Parol: qabulxona2026
 4. Kirish bosing
 5. Avtomatik /reception ga o'tadi ✅
 ```

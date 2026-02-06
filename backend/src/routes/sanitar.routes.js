@@ -43,6 +43,12 @@ router.get('/dashboard', authenticate, async (req, res) => {
     const roomsInRecords = pendingCount + inProgressCount + completedCount;
     const actualPending = totalRooms - inProgressCount - completedCount;
     
+    // Get areas (departments)
+    const areas = [
+      { area: 'Statsionar', department: 'inpatient' },
+      { area: 'Ambulatorxona', department: 'ambulator' }
+    ];
+    
     res.json({
       success: true,
       data: {
@@ -50,7 +56,8 @@ router.get('/dashboard', authenticate, async (req, res) => {
         in_progress_tasks: inProgressCount,
         completed_today: completedCount,
         total_completed: completedCount
-      }
+      },
+      areas: areas
     });
   } catch (error) {
     console.error('Get sanitar dashboard error:', error);
@@ -166,6 +173,7 @@ router.get('/rooms', authenticate, async (req, res) => {
         room_name: room.room_name,
         room_type: room.department === 'ambulator' ? 'ambulatorxona' : 'palata',
         area: room.department === 'ambulator' ? 'Ambulatorxona' : 'Statsionar',
+        department: room.department, // Add department field
         floor: room.floor ? room.floor.toString() : '1',
         status: cleaningStatus,
         priority: 'normal',
@@ -332,6 +340,7 @@ router.get('/history', authenticate, async (req, res) => {
       room_number: cleaning.room_number,
       room_type: cleaning.room_type,
       area: cleaning.building,
+      department: cleaning.building === 'Ambulatorxona' ? 'ambulator' : 'inpatient', // Add department
       floor: cleaning.floor,
       completed_at: cleaning.completed_at,
       notes: cleaning.notes,

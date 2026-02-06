@@ -7,7 +7,10 @@ export default function AIChatbot() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState('');
+  const [typingMessage, setTypingMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const typingIntervalRef = useRef(null);
 
   useEffect(() => {
     // Session ID yaratish yoki localStorage'dan olish
@@ -42,10 +45,44 @@ export default function AIChatbot() {
   useEffect(() => {
     // Scroll to bottom
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typingMessage]);
+
+  useEffect(() => {
+    // Cleanup typing interval on unmount
+    return () => {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const typeMessage = (fullMessage) => {
+    setIsTyping(true);
+    setTypingMessage('');
+    let currentIndex = 0;
+
+    typingIntervalRef.current = setInterval(() => {
+      if (currentIndex < fullMessage.length) {
+        setTypingMessage(prev => prev + fullMessage[currentIndex]);
+        currentIndex++;
+      } else {
+        clearInterval(typingIntervalRef.current);
+        setIsTyping(false);
+        
+        // Add the complete message to messages array
+        const aiMessage = {
+          role: 'assistant',
+          content: fullMessage,
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, aiMessage]);
+        setTypingMessage('');
+      }
+    }, 30); // 30ms per character for smooth typing effect
+  };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || isTyping) return;
 
     const userMessage = {
       role: 'user',
@@ -73,29 +110,28 @@ export default function AIChatbot() {
       const data = await response.json();
 
       if (data.success) {
-        const aiMessage = {
-          role: 'assistant',
-          content: data.message,
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, aiMessage]);
+        // Start typing animation instead of adding message directly
+        typeMessage(data.message);
       } else {
         throw new Error(data.error);
       }
     } catch (error) {
       console.error('Chat error:', error);
-      const errorMessage = {
-        role: 'assistant',
-        content: 'Kechirasiz, AI chatbot xizmati hozircha ishlamayapti. Iltimos, keyinroq urinib ko\'ring yoki administrator bilan bog\'laning.',
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      const errorMessage = 'Kechirasiz, AI chatbot xizmati hozircha ishlamayapti. Iltimos, keyinroq urinib ko\'ring yoki administrator bilan bog\'laning.';
+      typeMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   const clearChat = () => {
+    // Clear typing animation if active
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+    }
+    setIsTyping(false);
+    setTypingMessage('');
+    
     setMessages([{
       role: 'assistant',
       content: 'Assalomu alaykum! Men klinika AI yordamchisiman. Sizga qanday yordam bera olaman?',
@@ -174,12 +210,12 @@ export default function AIChatbot() {
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
               >
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                     msg.role === 'user'
-                      ? 'bg-gradient-to-r from-green-500 to-purple-600 text-white'
+                      ? 'bg-gradient-to-r from-green-500 to-purple-600 text-white shadow-lg'
                       : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-md'
                   }`}
                 >
@@ -190,7 +226,18 @@ export default function AIChatbot() {
                 </div>
               </div>
             ))}
-            {isLoading && (
+            
+            {/* Typing Animation Message */}
+            {isTyping && typingMessage && (
+              <div className="flex justify-start animate-fadeIn">
+                <div className="max-w-[80%] bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl px-4 py-3 shadow-md">
+                  <p className="text-sm whitespace-pre-wrap">{typingMessage}<span className="animate-pulse">|</span></p>
+                </div>
+              </div>
+            )}
+            
+            {/* Loading Indicator */}
+            {isLoading && !isTyping && (
               <div className="flex justify-start">
                 <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-3 shadow-md">
                   <div className="flex gap-2">
@@ -214,11 +261,11 @@ export default function AIChatbot() {
                 placeholder="Savolingizni yozing..."
                 className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none resize-none bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200"
                 rows="2"
-                disabled={isLoading}
+                disabled={isLoading || isTyping}
               />
               <button
                 onClick={sendMessage}
-                disabled={isLoading || !inputMessage.trim()}
+                disabled={isLoading || isTyping || !inputMessage.trim()}
                 className="px-6 py-3 bg-gradient-to-r from-green-500 to-purple-600 text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

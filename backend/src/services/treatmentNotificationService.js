@@ -14,9 +14,12 @@ const BOT_TOKEN = process.env.BOT_TOKEN || '8551375038:AAFXDSS0IwrsZsqCIC2_oXXZw
 export async function sendTreatmentNotifications() {
   try {
     console.log('🔔 Checking for upcoming treatments...');
+    console.log('Current time:', new Date().toISOString());
     
     const now = new Date();
     const fiveMinutesLater = new Date(now.getTime() + 5 * 60000); // 5 daqiqadan keyin
+    
+    console.log('Checking treatments between:', now.toISOString(), 'and', fiveMinutesLater.toISOString());
     
     // Keyingi 5 daqiqada muolaja vaqti kelgan va hali pending bo'lgan treatmentlarni topish
     const upcomingTreatments = await TreatmentSchedule.find({
@@ -33,6 +36,16 @@ export async function sendTreatmentNotifications() {
       .lean();
     
     console.log(`📊 Found ${upcomingTreatments.length} upcoming treatments`);
+    
+    if (upcomingTreatments.length > 0) {
+      console.log('Treatments:', upcomingTreatments.map(t => ({
+        patient: `${t.patient_id?.first_name} ${t.patient_id?.last_name}`,
+        medication: t.medication_name,
+        scheduled_time: t.scheduled_time,
+        nurse: `${t.nurse_id?.first_name} ${t.nurse_id?.last_name}`,
+        has_telegram: !!t.nurse_id?.telegram_chat_id
+      })));
+    }
     
     if (upcomingTreatments.length === 0) {
       return;
@@ -55,20 +68,25 @@ export async function sendTreatmentNotifications() {
         // Xona va ko'rpa ma'lumotlarini olish
         let roomInfo = '';
         let bedInfo = '';
+        let departmentInfo = '';
         
         if (treatment.admission_id) {
           const admission = await Admission.findById(treatment.admission_id)
-            .populate('room_id', 'room_number floor')
+            .populate('room_id', 'room_number floor department')
             .populate('bed_id', 'bed_number')
             .lean();
           
           if (admission) {
             if (admission.room_id) {
               const room = admission.room_id;
-              roomInfo = `🏥 Xona: ${room.room_number}`;
-              if (room.floor) {
-                roomInfo += ` (${room.floor}-qavat)`;
+              
+              // Department
+              if (room.department) {
+                departmentInfo = room.department === 'inpatient' ? 'Statsionar' : 'Ambulatorxona';
               }
+              
+              // Xona (without floor)
+              roomInfo = `🚪 Xona: ${room.room_number}`;
             }
             
             if (admission.bed_id) {
@@ -83,10 +101,13 @@ export async function sendTreatmentNotifications() {
         const scheduledTime = new Date(treatment.scheduled_time);
         const timeStr = scheduledTime.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
         
-        let message = `⏰ *Muolaja vaqti yaqinlashdi!*\n\n`;
+        let message = `⏰ *MUOLAJA VAQTI YAQINLASHDI!*\n\n`;
         message += `👤 *Bemor:* ${patient.first_name} ${patient.last_name}\n`;
         message += `📋 Bemor №: ${patient.patient_number}\n\n`;
         
+        if (departmentInfo) {
+          message += `🏥 Bo'lim: ${departmentInfo}\n`;
+        }
         if (roomInfo) {
           message += `${roomInfo}\n`;
         }
@@ -94,7 +115,7 @@ export async function sendTreatmentNotifications() {
           message += `${bedInfo}\n`;
         }
         
-        message += `\n💊 *Muolaja:* ${treatment.medication_name}\n`;
+        message += `\n💊 *Dori:* ${treatment.medication_name}\n`;
         message += `💉 *Doza:* ${treatment.dosage}\n`;
         message += `🕐 *Vaqt:* ${timeStr}\n`;
         
@@ -102,10 +123,28 @@ export async function sendTreatmentNotifications() {
           message += `\n📝 *Ko'rsatma:* ${treatment.instructions}`;
         }
         
+        message += `\n\n⚡️ *TEZKOR YORDAM KERAK!* ⚡️`;
+        message += `\n💡 Iltimos, bemorga darhol yordam bering!`;
+        
         // Telegram orqali yuborish
         await bot.sendMessage(nurse.telegram_chat_id, message, { parse_mode: 'Markdown' });
         
         console.log(`✅ Notification sent to nurse ${nurse.first_name} ${nurse.last_name} for patient ${patient.first_name} ${patient.last_name}`);
+        
+        // WebSocket orqali frontend'ga ham yuborish (ovozli ogohlantirish uchun)
+        if (global.io) {
+          global.io.emit('treatment-notification', {
+            nurseId: nurse._id.toString(),
+            patientId: patient._id.toString(),
+            patientName: `${patient.first_name} ${patient.last_name}`,
+            patientNumber: patient.patient_number,
+            medicationName: treatment.medication_name,
+            dosage: treatment.dosage,
+            scheduledTime: treatment.scheduled_time,
+            timestamp: new Date()
+          });
+          console.log('✅ WebSocket treatment notification sent to frontend');
+        }
         
         // Treatment'ga notification_sent flag qo'shish (agar kerak bo'lsa)
         // await TreatmentSchedule.findByIdAndUpdate(treatment._id, { notification_sent: true });

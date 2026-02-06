@@ -392,7 +392,7 @@ export default function PayrollManagement() {
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                     <option key={month} value={month}>
-                      {new Date(2024, month - 1).toLocaleString('uz-UZ', { month: 'long' })}
+                      {new Date(2026, month - 1).toLocaleString('uz-UZ', { month: 'long' })}
                     </option>
                   ))}
                 </select>

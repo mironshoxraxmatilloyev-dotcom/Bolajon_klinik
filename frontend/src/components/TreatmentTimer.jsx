@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 
 /**
  * TreatmentTimer - Shows countdown timer for upcoming treatments
  * Displays when treatment time is within 30 minutes
  * Changes color based on urgency
+ * Plays audio notification when timer reaches 0
  */
-export default function TreatmentTimer({ treatments }) {
+export default function TreatmentTimer({ treatments, onTimerComplete, audioEnabled, playAlarmSound }) {
   const [nextTreatment, setNextTreatment] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
   const [urgencyLevel, setUrgencyLevel] = useState('normal'); // normal, warning, critical
+  const notifiedTreatments = useRef(new Set()); // Track which treatments we've already notified about
 
   useEffect(() => {
     const updateTimer = () => {
@@ -71,6 +74,44 @@ export default function TreatmentTimer({ treatments }) {
         } else {
           setUrgencyLevel('normal'); // Blue - more than 15 minutes
         }
+
+        // Check if timer reached 0 (within 3 seconds to avoid missing it)
+        if (minutesLeft === 0 && secondsLeft <= 3) {
+          const treatmentKey = `${closestTreatment.id}-${closestTime.getTime()}`;
+          
+          // Only notify once per treatment time
+          if (!notifiedTreatments.current.has(treatmentKey)) {
+            notifiedTreatments.current.add(treatmentKey);
+            
+            console.log('⏰ TIMER REACHED 0! Treatment time arrived:', closestTreatment.medication_name);
+            
+            // Play audio if enabled
+            if (audioEnabled && playAlarmSound) {
+              console.log('🔊 Playing alarm sound for treatment timer...');
+              playAlarmSound();
+            }
+            
+            // Show toast notification
+            toast.success(
+              `⏰ MUOLAJA VAQTI!\n${closestTreatment.medication_name}`,
+              {
+                duration: 10000,
+                icon: '💊',
+                style: {
+                  background: '#10b981',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '16px'
+                }
+              }
+            );
+            
+            // Call callback if provided
+            if (onTimerComplete) {
+              onTimerComplete(closestTreatment);
+            }
+          }
+        }
       } else {
         setNextTreatment(null);
         setTimeLeft(null);
@@ -84,7 +125,7 @@ export default function TreatmentTimer({ treatments }) {
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [treatments]);
+  }, [treatments, audioEnabled, playAlarmSound, onTimerComplete]);
 
   if (!nextTreatment || !timeLeft) {
     return null;

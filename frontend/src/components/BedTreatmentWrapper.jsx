@@ -4,7 +4,7 @@ import doctorNurseService from '../services/doctorNurseService';
 import MedicineSelectionModal from './MedicineSelectionModal';
 import TreatmentTimer from './TreatmentTimer';
 
-export default function BedTreatmentWrapper({ children, patientId, patientName, roomNumber, bedNumber, onTreatmentComplete, hasMyTreatments, admissionType, isNurseCalling }) {
+export default function BedTreatmentWrapper({ children, patientId, patientName, roomNumber, bedNumber, onTreatmentComplete, hasMyTreatments, admissionType, isNurseCalling, audioEnabled, playAlarmSound }) {
   const [showModal, setShowModal] = useState(false);
   const [treatments, setTreatments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -605,7 +605,11 @@ export default function BedTreatmentWrapper({ children, patientId, patientName, 
         
         {/* Treatment Timer - shows in top-right corner */}
         {hasMyTreatments && patientId && treatments.length > 0 && (
-          <TreatmentTimer treatments={treatments} />
+          <TreatmentTimer 
+            treatments={treatments} 
+            audioEnabled={audioEnabled}
+            playAlarmSound={playAlarmSound}
+          />
         )}
         
         {children}
