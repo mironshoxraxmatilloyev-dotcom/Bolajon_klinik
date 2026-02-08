@@ -5,6 +5,8 @@ import Staff from '../models/Staff.js';
 import Invoice from '../models/Invoice.js';
 import BillingItem from '../models/BillingItem.js';
 import Service from '../models/Service.js';
+import Bonus from '../models/Bonus.js';
+import Penalty from '../models/Penalty.js';
 
 const router = express.Router();
 
@@ -165,41 +167,49 @@ router.get('/my-bonuses', authenticate, async (req, res) => {
   try {
     const staffId = req.user._id || req.user.id;
     
-    // Get all payroll records with bonuses/penalties
-    const payrolls = await MonthlyPayroll.find({
+    console.log('🔍 Getting bonuses/penalties for staff:', staffId);
+    
+    // Get bonuses directly from Bonus collection
+    const bonusRecords = await Bonus.find({
       staff_id: staffId,
-      $or: [
-        { other_bonuses: { $gt: 0 } },
-        { penalties: { $gt: 0 } }
-      ]
+      status: 'approved'
     })
-      .sort({ year: -1, month: -1 })
+      .sort({ created_at: -1 })
       .lean();
 
-    const bonuses = [];
-    const penalties = [];
+    console.log('✅ Found bonuses:', bonusRecords.length);
 
-    payrolls.forEach(payroll => {
-      if (parseFloat(payroll.other_bonuses || 0) > 0) {
-        bonuses.push({
-          id: payroll._id.toString() + '_bonus',
-          bonus_type: 'Oylik bonus',
-          amount: payroll.other_bonuses,
-          reason: payroll.notes || 'Oylik bonus',
-          bonus_date: new Date(payroll.year, payroll.month - 1, 1)
-        });
-      }
+    // Get penalties directly from Penalty collection (both pending and approved)
+    const penaltyRecords = await Penalty.find({
+      staff_id: staffId,
+      status: { $in: ['pending', 'approved'] }
+    })
+      .sort({ created_at: -1 })
+      .lean();
 
-      if (parseFloat(payroll.penalties || 0) > 0) {
-        penalties.push({
-          id: payroll._id.toString() + '_penalty',
-          penalty_type: 'Oylik jarima',
-          amount: payroll.penalties,
-          reason: payroll.notes || 'Oylik jarima',
-          penalty_date: new Date(payroll.year, payroll.month - 1, 1)
-        });
-      }
-    });
+    console.log('✅ Found penalties:', penaltyRecords.length);
+
+    const bonuses = bonusRecords.map(bonus => ({
+      id: bonus._id.toString(),
+      bonus_type: bonus.bonus_type || 'other',
+      amount: bonus.amount,
+      reason: bonus.reason,
+      bonus_date: bonus.penalty_date || bonus.created_at,
+      status: bonus.status
+    }));
+
+    const penalties = penaltyRecords.map(penalty => ({
+      id: penalty._id.toString(),
+      penalty_type: penalty.penalty_type || 'other',
+      amount: penalty.amount,
+      reason: penalty.reason,
+      penalty_date: penalty.penalty_date || penalty.created_at,
+      status: penalty.status,
+      month: penalty.month,
+      year: penalty.year
+    }));
+
+    console.log('📦 Returning data:', { bonuses: bonuses.length, penalties: penalties.length });
 
     res.json({
       success: true,

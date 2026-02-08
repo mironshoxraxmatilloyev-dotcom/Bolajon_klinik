@@ -23,6 +23,7 @@ const PatientProfile = () => {
   const [invoices, setInvoices] = useState([]);
   const [labResults, setLabResults] = useState([]); // labOrders -> labResults
   const [admissions, setAdmissions] = useState([]);
+  const [assignedSpecialists, setAssignedSpecialists] = useState([]);
   const [treatmentSchedule, setTreatmentSchedule] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState('overview');
@@ -51,6 +52,8 @@ const PatientProfile = () => {
   useEffect(() => {
     if (activeTab === 'treatments') {
       loadTreatmentSchedule();
+    } else if (activeTab === 'specialists') {
+      loadAssignedSpecialists();
     }
   }, [activeTab, selectedDate, id]);
 
@@ -62,6 +65,22 @@ const PatientProfile = () => {
       }
     } catch (error) {
       console.error('Load treatment schedule error:', error);
+    }
+  };
+
+  const loadAssignedSpecialists = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1'}/appointments/patient/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAssignedSpecialists(data.data || []);
+      }
+    } catch (error) {
+      console.error('Load specialists error:', error);
     }
   };
 
@@ -255,6 +274,7 @@ const PatientProfile = () => {
               { id: 'overview', label: 'Umumiy', icon: 'dashboard' },
               { id: 'treatments', label: 'Muolaja jadvali', icon: 'schedule' },
               { id: 'prescriptions', label: 'Retseptlar', icon: 'medication' },
+              { id: 'specialists', label: 'Mutaxasislar', icon: 'medical_information' },
               { id: 'lab', label: 'Tahlillar', icon: 'biotech' },
               { id: 'billing', label: 'Moliya', icon: 'payments' },
               { id: 'admissions', label: 'Yotqizish', icon: 'bed' }
@@ -541,6 +561,92 @@ const PatientProfile = () => {
                             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 break-words">{prescription.notes}</p>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mutaxasislar Tab */}
+          {activeTab === 'specialists' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg sm:text-xl font-bold">Biriktirilgan mutaxasislar</h3>
+              </div>
+
+              {assignedSpecialists.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                  <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">person_off</span>
+                  <p className="text-gray-500 dark:text-gray-400">Hali mutaxasis biriktirilmagan</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {assignedSpecialists.map((specialist) => (
+                    <div key={specialist.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="size-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">person</span>
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-gray-900 dark:text-white">{specialist.doctor_name}</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">{specialist.specialist_type_label || specialist.specialist_type}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="material-symbols-outlined text-gray-400">schedule</span>
+                              <div>
+                                <p className="text-gray-500 dark:text-gray-400 text-xs">Kelish vaqti</p>
+                                <p className="font-semibold text-gray-900 dark:text-white">
+                                  {new Date(specialist.appointment_time).toLocaleString('uz-UZ')}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="material-symbols-outlined text-gray-400">payments</span>
+                              <div>
+                                <p className="text-gray-500 dark:text-gray-400 text-xs">Narx</p>
+                                <p className="font-semibold text-gray-900 dark:text-white">
+                                  {specialist.price?.toLocaleString()} so'm
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {specialist.notes && (
+                              <div className="sm:col-span-2 flex items-start gap-2 text-sm">
+                                <span className="material-symbols-outlined text-gray-400">notes</span>
+                                <div>
+                                  <p className="text-gray-500 dark:text-gray-400 text-xs">Izoh</p>
+                                  <p className="text-gray-700 dark:text-gray-300">{specialist.notes}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex sm:flex-col items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                            specialist.status === 'completed' 
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                              : specialist.status === 'cancelled'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                              : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                          }`}>
+                            {specialist.status === 'completed' ? 'Bajarildi' : 
+                             specialist.status === 'cancelled' ? 'Bekor qilindi' : 
+                             'Rejalashtirilgan'}
+                          </span>
+                          
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(specialist.created_at).toLocaleDateString('uz-UZ')}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}

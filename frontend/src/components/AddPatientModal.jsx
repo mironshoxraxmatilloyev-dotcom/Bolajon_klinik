@@ -16,7 +16,8 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
     birth_date: '',
     gender: 'male',
     pinfl: '',
-    address: ''
+    address: '',
+    house_number: ''
   });
 
   const validateStep1 = () => {
@@ -78,7 +79,8 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
         date_of_birth: formData.birth_date,
         gender: formData.gender,
         passport_number: formData.pinfl && formData.pinfl.length === 14 ? formData.pinfl : null, // Faqat to'liq 14 ta raqam bo'lsa yuborish
-        address: formData.address || null
+        address: formData.address || null,
+        house_number: formData.house_number || null
       };
       
       console.log('Sending patient data:', patientData);
@@ -107,7 +109,8 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
       birth_date: '',
       gender: 'male',
       pinfl: '',
-      address: ''
+      address: '',
+      house_number: ''
     });
     setStep(1);
     setErrors({});
@@ -299,19 +302,35 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
               <p className="mt-1 text-xs text-gray-500">14 raqamli shaxsiy identifikatsiya raqami</p>
             </div>
 
-            {/* Manzil */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t('patients.address')}
-                <span className="ml-2 text-xs text-gray-500 font-normal">(ixtiyoriy)</span>
-              </label>
-              <textarea
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                rows="3"
-                placeholder="Toshkent sh., Yunusobod t., Amir Temur ko'chasi 123"
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl input-focus text-gray-900 dark:text-white placeholder-gray-400 resize-none"
-              ></textarea>
+            {/* Manzil va Uy raqami */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  {t('patients.address')}
+                  <span className="ml-2 text-xs text-gray-500 font-normal">(ixtiyoriy)</span>
+                </label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  rows="3"
+                  placeholder="Toshkent sh., Yunusobod t., Amir Temur ko'chasi 123"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl input-focus text-gray-900 dark:text-white placeholder-gray-400 resize-none"
+                ></textarea>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Uy raqami
+                  <span className="ml-2 text-xs text-gray-500 font-normal">(ixtiyoriy)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.house_number}
+                  onChange={(e) => setFormData({ ...formData, house_number: e.target.value })}
+                  placeholder="123"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl input-focus text-gray-900 dark:text-white placeholder-gray-400"
+                />
+              </div>
             </div>
           </div>
         )}

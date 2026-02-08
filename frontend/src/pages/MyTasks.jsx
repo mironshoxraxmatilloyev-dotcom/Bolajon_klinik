@@ -6,6 +6,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import taskService from '../services/taskService';
+import attendanceService from '../services/attendanceService';
+import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import Modal from '../components/Modal';
 
@@ -17,9 +19,24 @@ export default function MyTasks() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [completionNotes, setCompletionNotes] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, pending, in_progress, completed, verified
+  
+  // On-duty shifts for doctors
+  const [onDutyShifts, setOnDutyShifts] = useState([]);
+  const [shiftsLoading, setShiftsLoading] = useState(false);
+  const isDoctor = user?.role?.name === 'doctor' || user?.role_name === 'doctor' || user?.role_name === 'Shifokor';
+  
+  // Attendance
+  const [todayAttendance, setTodayAttendance] = useState(null);
+  const [workSchedule, setWorkSchedule] = useState(null);
+  const [checkingIn, setCheckingIn] = useState(false);
 
   useEffect(() => {
     loadTasks();
+    loadTodayAttendance();
+    loadWorkSchedule();
+    if (isDoctor) {
+      loadOnDutyShifts();
+    }
   }, []);
 
   const loadTasks = async () => {
@@ -35,6 +52,94 @@ export default function MyTasks() {
       toast.error('Vazifalarni yuklashda xatolik');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const loadOnDutyShifts = async () => {
+    try {
+      setShiftsLoading(true);
+      
+      // Use the doctor-specific endpoint
+      const response = await api.get('/chief-doctor/my-shifts');
+      
+      if (response.data.success) {
+        setOnDutyShifts(response.data.data);
+      }
+    } catch (error) {
+      console.error('Load on-duty shifts error:', error);
+      if (error.response?.status !== 403) {
+        toast.error('Navbatdagi smenalarni yuklashda xatolik');
+      }
+    } finally {
+      setShiftsLoading(false);
+    }
+  };
+
+  const loadTodayAttendance = async () => {
+    try {
+      const response = await attendanceService.getTodayAttendance();
+      if (response.success) {
+        setTodayAttendance(response.data);
+      }
+    } catch (error) {
+      console.error('Load attendance error:', error);
+    }
+  };
+
+  const loadWorkSchedule = async () => {
+    try {
+      const response = await api.get('/payroll/my-work-schedule');
+      if (response.data.success) {
+        setWorkSchedule(response.data.data);
+      }
+    } catch (error) {
+      console.error('Load work schedule error:', error);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (!confirm('Ishga kelganingizni tasdiqlaysizmi?')) return;
+    
+    setCheckingIn(true);
+    try {
+      const response = await attendanceService.checkIn();
+      
+      if (response.success) {
+        if (response.data.isLate) {
+          toast.error(response.message, { duration: 8000 });
+        } else {
+          toast.success(response.message);
+        }
+        loadTodayAttendance();
+      }
+    } catch (error) {
+      console.error('Check in error:', error);
+      toast.error(error.response?.data?.message || 'Xatolik yuz berdi');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!confirm('Ishdan ketayotganingizni tasdiqlaysizmi?')) return;
+    
+    setCheckingIn(true);
+    try {
+      const response = await attendanceService.checkOut();
+      
+      if (response.success) {
+        if (response.data.isEarly) {
+          toast.error(response.message, { duration: 8000 });
+        } else {
+          toast.success(response.message);
+        }
+        loadTodayAttendance();
+      }
+    } catch (error) {
+      console.error('Check out error:', error);
+      toast.error(error.response?.data?.message || 'Xatolik yuz berdi');
+    } finally {
+      setCheckingIn(false);
     }
   };
 
@@ -162,6 +267,75 @@ export default function MyTasks() {
         </div>
       </div>
 
+      {/* Attendance Card */}
+      {workSchedule && (
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-500 p-3 rounded-xl">
+                <span className="material-symbols-outlined text-white text-3xl">schedule</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white">Ish vaqti</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {workSchedule.work_start_time} - {workSchedule.work_end_time}
+                </p>
+              </div>
+            </div>
+            
+            {!todayAttendance?.check_in ? (
+              <button
+                onClick={handleCheckIn}
+                disabled={checkingIn}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined">login</span>
+                {checkingIn ? 'Yuklanmoqda...' : 'Men keldim'}
+              </button>
+            ) : !todayAttendance?.check_out ? (
+              <div className="flex items-center gap-3">
+                <div className="bg-green-100 dark:bg-green-900/30 px-6 py-3 rounded-xl border-2 border-green-300 dark:border-green-700">
+                  <p className="text-sm font-bold text-green-700 dark:text-green-300">
+                    ✓ Kelish: {new Date(todayAttendance.check_in).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <button
+                  onClick={handleCheckOut}
+                  disabled={checkingIn}
+                  className="px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl hover:from-red-700 hover:to-rose-700 font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined">logout</span>
+                  {checkingIn ? 'Yuklanmoqda...' : 'Men ketdim'}
+                </button>
+              </div>
+            ) : (
+              <div className="bg-blue-100 dark:bg-blue-900/30 px-6 py-3 rounded-xl border-2 border-blue-300 dark:border-blue-700">
+                <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                  ✓ Kelish: {new Date(todayAttendance.check_in).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                  {' • '}
+                  Ketish: {new Date(todayAttendance.check_out).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Haftada</p>
+              <p className="text-lg font-black text-gray-900 dark:text-white">
+                {workSchedule.work_days_per_week} kun
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Oylik</p>
+              <p className="text-lg font-black text-gray-900 dark:text-white">
+                {workSchedule.work_hours_per_month} soat
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Buttons */}
       <div className="flex flex-wrap gap-2">
         {[
@@ -185,9 +359,106 @@ export default function MyTasks() {
         ))}
       </div>
 
+      {/* On-Duty Shifts Section (Only for Doctors) */}
+      {isDoctor && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">event_available</span>
+              </div>
+              <h2 className="text-2xl font-bold">Navbatdagi smenalarim</h2>
+            </div>
+
+            {shiftsLoading ? (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              </div>
+            ) : onDutyShifts.length === 0 ? (
+              <div className="text-center py-12">
+                <span className="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-700">
+                  event_busy
+                </span>
+                <p className="text-gray-500 dark:text-gray-400 mt-4">Sizga biriktirilgan navbatdagi smenalar yo'q</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {onDutyShifts.map(shift => (
+                  <div
+                    key={shift._id}
+                    className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="size-14 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
+                          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">
+                            event_available
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-bold text-lg text-gray-900 dark:text-white">
+                            {new Date(shift.shift_date).toLocaleDateString('uz-UZ', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {shift.start_time} - {shift.end_time}
+                          </p>
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${
+                            shift.shift_type === 'morning' ? 'bg-yellow-100 text-yellow-700' :
+                            shift.shift_type === 'evening' ? 'bg-orange-100 text-orange-700' :
+                            shift.shift_type === 'night' ? 'bg-indigo-100 text-indigo-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {shift.shift_type === 'morning' ? 'Ertalabki' :
+                             shift.shift_type === 'evening' ? 'Kechki' :
+                             shift.shift_type === 'night' ? 'Tungi' :
+                             'Kun bo\'yi'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          shift.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                          shift.status === 'active' ? 'bg-green-100 text-green-700' :
+                          shift.status === 'completed' ? 'bg-gray-100 text-gray-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {shift.status === 'scheduled' ? 'Rejalashtirilgan' :
+                           shift.status === 'active' ? 'Faol' :
+                           shift.status === 'completed' ? 'Tugatilgan' :
+                           'Bekor qilingan'}
+                        </span>
+                      </div>
+                    </div>
+                    {shift.notes && (
+                      <div className="mt-3 bg-white dark:bg-gray-800 p-3 rounded-lg">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <span className="font-semibold">Izoh:</span> {shift.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Tasks List */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm">
         <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg">
+              <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">task_alt</span>
+            </div>
+            <h2 className="text-2xl font-bold">Vazifalar</h2>
+          </div>
+
           {filteredTasks.length === 0 ? (
             <div className="text-center py-12">
               <span className="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-700">

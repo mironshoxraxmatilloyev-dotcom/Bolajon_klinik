@@ -100,6 +100,9 @@ const patientSchema = new mongoose.Schema({
   last_visit: {
     type: Date
   },
+  last_visit_date: {
+    type: Date
+  },
   total_debt: {
     type: Number,
     default: 0

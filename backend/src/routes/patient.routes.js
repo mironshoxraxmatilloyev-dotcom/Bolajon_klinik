@@ -5,6 +5,61 @@ import Patient from '../models/Patient.js';
 const router = express.Router();
 
 /**
+ * Search patients - simple endpoint for quick search
+ */
+router.get('/search',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const { q = '', limit = 100 } = req.query;
+      
+      let query = { status: 'active' };
+      
+      // Search filter
+      if (q && q.trim()) {
+        const searchRegex = new RegExp(q.trim(), 'i');
+        query.$or = [
+          { first_name: searchRegex },
+          { last_name: searchRegex },
+          { middle_name: searchRegex },
+          { phone: searchRegex },
+          { patient_number: searchRegex }
+        ];
+      }
+      
+      const patients = await Patient.find(query)
+        .select('patient_number first_name last_name middle_name phone date_of_birth gender total_debt status createdAt registration_date last_visit_date')
+        .limit(parseInt(limit))
+        .sort({ createdAt: -1 })
+        .lean();
+      
+      const formattedPatients = patients.map(patient => ({
+        id: patient._id,
+        patient_number: patient.patient_number,
+        first_name: patient.first_name,
+        last_name: patient.last_name,
+        middle_name: patient.middle_name || '',
+        phone: patient.phone,
+        birth_date: patient.date_of_birth,
+        gender: patient.gender,
+        current_balance: patient.total_debt || 0,
+        is_blocked: patient.status !== 'active',
+        created_at: patient.createdAt || patient.registration_date,
+        last_visit_date: patient.last_visit_date
+      }));
+      
+      res.json({
+        success: true,
+        data: formattedPatients
+      });
+    } catch (error) {
+      console.error('Search patients error:', error);
+      next(error);
+    }
+  }
+);
+
+/**
  * Get all patients with pagination
  */
 router.get('/',

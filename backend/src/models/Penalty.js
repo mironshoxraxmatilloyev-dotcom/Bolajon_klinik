@@ -38,6 +38,10 @@ const penaltySchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected'],
     default: 'approved'
   },
+  penalty_date: {
+    type: Date,
+    default: Date.now
+  },
   notes: {
     type: String
   }

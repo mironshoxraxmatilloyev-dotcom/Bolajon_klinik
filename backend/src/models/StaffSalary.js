@@ -12,6 +12,28 @@ const staffSalarySchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Oylik ish soatlari
+  work_hours_per_month: {
+    type: Number,
+    default: 160, // Default: 8 soat * 20 ish kuni
+    min: 0
+  },
+  // Kunlik ish vaqti
+  work_start_time: {
+    type: String, // Format: "09:00"
+    default: "09:00"
+  },
+  work_end_time: {
+    type: String, // Format: "18:00"
+    default: "18:00"
+  },
+  // Haftada necha kun ishlaydi
+  work_days_per_week: {
+    type: Number,
+    default: 5,
+    min: 1,
+    max: 7
+  },
   // Lavozim bonusi
   position_bonus: {
     type: Number,
@@ -28,6 +50,13 @@ const staffSalarySchema = new mongoose.Schema({
     default: 0,
     min: 0,
     max: 100
+  },
+  // Bosh shifokor uchun statsionar foizi (maksimal 50%)
+  inpatient_percentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 50
   },
   // Xona tozalash narxi (faqat sanitar uchun)
   room_cleaning_rate: {

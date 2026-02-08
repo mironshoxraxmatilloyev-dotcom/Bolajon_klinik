@@ -598,6 +598,130 @@ router.get('/dispense/history', authenticate, async (req, res, next) => {
   }
 });
 
+/**
+ * Dispense medicine to patient (Dori ishlatish)
+ * POST /api/v1/pharmacy/medicines/:id/dispense
+ */
+router.post('/medicines/:id/dispense', authenticate, authorize('admin', 'pharmacist', 'nurse'), async (req, res, next) => {
+  try {
+    const { patient_id, quantity, notes } = req.body;
+
+    if (!patient_id || !quantity || quantity < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bemor va miqdor majburiy'
+      });
+    }
+
+    // Get medicine
+    const medicine = await Medicine.findById(req.params.id);
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dori topilmadi'
+      });
+    }
+
+    // Check stock
+    if (medicine.quantity < quantity) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dori yetarli emas'
+      });
+    }
+
+    // Get patient
+    const Patient = (await import('../models/Patient.js')).default;
+    const patient = await Patient.findById(patient_id);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bemor topilmadi'
+      });
+    }
+
+    // Calculate total cost
+    const totalCost = medicine.unit_price * quantity;
+
+    // Create pharmacy transaction (chiqim)
+    const transaction = await PharmacyTransaction.create({
+      medicine_id: medicine._id,
+      medicine_name: medicine.name,
+      patient_id: patient_id,
+      transaction_type: 'out',
+      quantity: quantity,
+      unit_price: medicine.unit_price,
+      total_amount: totalCost,
+      notes: notes || `Bemorga berildi: ${patient.first_name} ${patient.last_name}`,
+      created_by: req.user.id
+    });
+
+    // Decrease medicine stock
+    medicine.quantity -= quantity;
+    if (medicine.quantity === 0) {
+      medicine.status = 'out_of_stock';
+    }
+    await medicine.save();
+
+    // Add debt to patient
+    patient.total_debt = (patient.total_debt || 0) + totalCost;
+    await patient.save();
+
+    // Create invoice
+    const Invoice = (await import('../models/Invoice.js')).default;
+    const BillingItem = (await import('../models/BillingItem.js')).default;
+
+    const invoiceCount = await Invoice.countDocuments();
+    const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+
+    const invoice = await Invoice.create({
+      patient_id: patient_id,
+      invoice_number: invoiceNumber,
+      total_amount: totalCost,
+      paid_amount: 0,
+      discount_amount: 0,
+      payment_status: 'pending',
+      notes: `Dorixona: ${medicine.name} (${quantity} ${medicine.unit || 'dona'})`,
+      created_by: req.user.id
+    });
+
+    await BillingItem.create({
+      billing_id: invoice._id,
+      service_id: medicine._id,
+      service_name: `Dori: ${medicine.name}`,
+      quantity: quantity,
+      unit_price: medicine.unit_price,
+      total_price: totalCost
+    });
+
+    // Create expense record
+    const Expense = (await import('../models/Expense.js')).default;
+    await Expense.create({
+      title: `Dori chiqimi: ${medicine.name}`,
+      category: 'Dori-darmonlar',
+      description: `Bemorga berildi: ${patient.first_name} ${patient.last_name} (${quantity} ${medicine.unit || 'dona'})`,
+      amount: totalCost,
+      payment_method: null,
+      created_by: req.user.id
+    });
+
+    res.json({
+      success: true,
+      message: 'Dori muvaffaqiyatli berildi',
+      data: {
+        transaction_id: transaction._id,
+        invoice_id: invoice._id,
+        medicine_remaining: medicine.quantity,
+        patient_debt: patient.total_debt,
+        total_cost: totalCost
+      }
+    });
+  } catch (error) {
+    console.error('Dispense medicine error:', error);
+    next(error);
+  }
+});
+
 export default router;
 
 

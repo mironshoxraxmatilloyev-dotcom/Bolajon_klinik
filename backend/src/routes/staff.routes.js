@@ -21,7 +21,7 @@ router.get('/', authenticate, async (req, res, next) => {
       ];
     }
     
-    if (role) query.role = role.toLowerCase();
+    if (role) query.role = { $regex: new RegExp(`^${role}$`, 'i') };
     if (department) query.department = department;
     if (status) query.status = status;
     
@@ -269,3 +269,62 @@ router.get('/roles/list', authenticate, async (req, res, next) => {
 });
 
 export default router;
+
+
+/**
+ * Get my today stats (for masseur, speech therapist, etc.)
+ * GET /api/v1/staff/my-stats/today
+ */
+router.get('/my-stats/today', authenticate, async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Import models dynamically to avoid circular dependencies
+    const Invoice = (await import('../models/Invoice.js')).default;
+    const Attendance = (await import('../models/Attendance.js')).default;
+
+    // Get today's invoices for this staff
+    const invoices = await Invoice.find({
+      doctor: staffId,
+      created_at: {
+        $gte: today,
+        $lt: tomorrow
+      }
+    });
+
+    const patients = invoices.length;
+    const revenue = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+
+    // Get today's attendance
+    const attendance = await Attendance.findOne({
+      staff: staffId,
+      check_in: {
+        $gte: today,
+        $lt: tomorrow
+      }
+    });
+
+    const workDuration = attendance?.work_duration || 0;
+
+    res.json({
+      success: true,
+      data: {
+        patients,
+        revenue,
+        workDuration
+      }
+    });
+  } catch (error) {
+    console.error('Get my stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Statistikani olishda xatolik',
+      error: error.message
+    });
+  }
+});

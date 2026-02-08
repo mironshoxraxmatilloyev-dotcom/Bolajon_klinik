@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import reportsService from '../services/reportsService';
+import cashierReportService from '../services/cashierReportService';
 import toast, { Toaster } from 'react-hot-toast';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
 
 export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('charts');
+  const [cashierReports, setCashierReports] = useState([]);
+  const [cashierTotals, setCashierTotals] = useState({});
   const [dateRange, setDateRange] = useState({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0]
@@ -25,12 +29,13 @@ export default function Reports() {
     try {
       setLoading(true);
       
-      const [dashboard, financial, debtors, patients, services] = await Promise.all([
+      const [dashboard, financial, debtors, patients, services, cashier] = await Promise.all([
         reportsService.getDashboardStats(),
         reportsService.getFinancialReport(dateRange.from, dateRange.to),
         reportsService.getDebtorsReport(),
         reportsService.getPatientsReport(dateRange.from, dateRange.to),
-        reportsService.getServicesReport(dateRange.from, dateRange.to)
+        reportsService.getServicesReport(dateRange.from, dateRange.to),
+        cashierReportService.getCashierReports({ start_date: dateRange.from, end_date: dateRange.to })
       ]);
 
       console.log('Dashboard data:', dashboard);
@@ -38,6 +43,7 @@ export default function Reports() {
       console.log('Debtors data:', debtors);
       console.log('Patients data:', patients);
       console.log('Services data:', services);
+      console.log('Cashier data:', cashier);
 
       if (dashboard.success) setDashboardStats(dashboard.data);
       if (financial.success) setFinancialReport(financial.data);
@@ -47,12 +53,70 @@ export default function Reports() {
         setPatientsReport(patients.data);
       }
       if (services.success) setServicesReport(services.data);
+      if (cashier.success) {
+        setCashierReports(cashier.data);
+        setCashierTotals(cashier.totals || {});
+      }
     } catch (error) {
       console.error('Load error:', error);
       console.error('Error response:', error.response);
       toast.error('Xatolik: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Excel export funksiyasi
+  const exportToExcel = () => {
+    try {
+      if (!financialReport.transactions || financialReport.transactions.length === 0) {
+        toast.error('Export qilish uchun ma\'lumot yo\'q');
+        return;
+      }
+
+      // Ma'lumotlarni Excel uchun tayyorlash
+      const excelData = financialReport.transactions.map((row, index) => ({
+        '№': index + 1,
+        'Sana': new Date(row.date).toLocaleDateString('uz-UZ'),
+        'Faktura №': row.invoice_number,
+        'Bemor': row.patient_name,
+        'Bemor №': row.patient_number,
+        'Jami summa': parseFloat(row.total_amount || 0),
+        'To\'langan': parseFloat(row.paid_amount || 0),
+        'Qarz': parseFloat(row.debt_amount || 0),
+        'Holat': row.payment_status === 'paid' ? 'To\'langan' : row.payment_status === 'partial' ? 'Qisman' : 'Kutilmoqda'
+      }));
+
+      // Workbook yaratish
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Ustunlar kengligini sozlash
+      ws['!cols'] = [
+        { wch: 5 },  // №
+        { wch: 12 }, // Sana
+        { wch: 15 }, // Faktura №
+        { wch: 25 }, // Bemor
+        { wch: 12 }, // Bemor №
+        { wch: 15 }, // Jami summa
+        { wch: 15 }, // To'langan
+        { wch: 15 }, // Qarz
+        { wch: 12 }  // Holat
+      ];
+
+      // Worksheet'ni workbook'ga qo'shish
+      XLSX.utils.book_append_sheet(wb, ws, 'Moliyaviy hisobot');
+
+      // Fayl nomini yaratish
+      const fileName = `Moliyaviy_hisobot_${dateRange.from}_${dateRange.to}.xlsx`;
+
+      // Faylni yuklab olish
+      XLSX.writeFile(wb, fileName);
+
+      toast.success('Excel fayl muvaffaqiyatli yuklandi!');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Excel export xatosi: ' + error.message);
     }
   };
 
@@ -102,14 +166,15 @@ export default function Reports() {
       {/* Dashboard Stats - Always Visible */}
       <div className="space-y-6">
         {/* Revenue Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <span className="material-symbols-outlined text-4xl opacity-80">today</span>
               <span className="text-sm opacity-80">Bugun</span>
             </div>
-            <p className="text-4xl font-black">{dashboardStats.today?.revenue?.toLocaleString() || 0} so'm</p>
-            <p className="text-sm opacity-90 mt-2">Kunlik daromad</p>
+            <p className="text-4xl font-black">{dashboardStats.today?.total_revenue_with_inpatient?.toLocaleString() || 0} so'm</p>
+            <p className="text-sm opacity-90 mt-2">Kunlik daromad (statsionar 50% bilan)</p>
+            <p className="text-xs opacity-75 mt-1">Sof: {dashboardStats.today?.net_revenue?.toLocaleString() || 0} so'm</p>
           </div>
           
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
@@ -117,8 +182,34 @@ export default function Reports() {
               <span className="material-symbols-outlined text-4xl opacity-80">calendar_month</span>
               <span className="text-sm opacity-80">Oy</span>
             </div>
-            <p className="text-4xl font-black">{dashboardStats.month?.revenue?.toLocaleString() || 0} so'm</p>
-            <p className="text-sm opacity-90 mt-2">Oylik daromad</p>
+            <p className="text-4xl font-black">{dashboardStats.month?.total_revenue_with_inpatient?.toLocaleString() || 0} so'm</p>
+            <p className="text-sm opacity-90 mt-2">Oylik daromad (statsionar 50% bilan)</p>
+            <p className="text-xs opacity-75 mt-1">Sof: {dashboardStats.month?.net_revenue?.toLocaleString() || 0} so'm</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <span className="material-symbols-outlined text-4xl opacity-80">bed</span>
+              <span className="text-sm opacity-80">Statsionar</span>
+            </div>
+            <p className="text-4xl font-black">{dashboardStats.month?.inpatient_revenue_50_percent?.toLocaleString() || 0} so'm</p>
+            <p className="text-sm opacity-90 mt-2">Oylik statsionar (faqat 50%)</p>
+          </div>
+
+          <div 
+            className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => window.location.href = '/expenses'}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="material-symbols-outlined text-4xl opacity-80">receipt_long</span>
+              <span className="text-sm opacity-80">Xarajatlar</span>
+            </div>
+            <p className="text-4xl font-black">{dashboardStats.month?.expenses?.toLocaleString() || 0} so'm</p>
+            <p className="text-sm opacity-90 mt-2">Oylik xarajatlar</p>
+            <p className="text-xs opacity-75 mt-1 flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">open_in_new</span>
+              Batafsil ko'rish
+            </p>
           </div>
         </div>
 
@@ -151,7 +242,8 @@ export default function Reports() {
               { id: 'financial', label: 'Moliyaviy', icon: 'payments' },
               { id: 'debtors', label: 'Qarzdorlar', icon: 'account_balance_wallet' },
               { id: 'patients', label: 'Bemorlar', icon: 'group' },
-              { id: 'services', label: 'Xizmatlar', icon: 'medical_services' }
+              { id: 'services', label: 'Xizmatlar', icon: 'medical_services' },
+              { id: 'cashier', label: 'Kasir Hisobotlari', icon: 'receipt_long' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -260,8 +352,15 @@ export default function Reports() {
               
               {/* Batafsil jadval */}
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Batafsil to'lovlar</h3>
+                  <button
+                    onClick={exportToExcel}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    <span className="material-symbols-outlined">download</span>
+                    Excel yuklab olish
+                  </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -507,8 +606,84 @@ export default function Reports() {
             </div>
           )}
 
+          {/* Cashier Reports Tab */}
+          {activeTab === 'cashier' && (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Jami Hisobotlar</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{cashierTotals.total_reports || 0}</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Jami Fakturalar</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{cashierTotals.total_invoices || 0}</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Jami Summa</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{(cashierTotals.total_amount || 0).toLocaleString()} so'm</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-500 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">To'langan</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{(cashierTotals.paid_amount || 0).toLocaleString()} so'm</p>
+                </div>
+              </div>
+
+              {/* Reports Table */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Kasir Hisobotlari</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Sana</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Xodim</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Fakturalar</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">To'langan</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Jami Summa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {cashierReports && cashierReports.length > 0 ? (
+                        cashierReports.map((report, index) => (
+                          <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                              {new Date(report.date).toLocaleDateString('uz-UZ')}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                              {report.staff_id?.first_name} {report.staff_id?.last_name}
+                            </td>
+                            <td className="px-4 py-3 text-center text-lg font-bold text-gray-900 dark:text-white">
+                              {report.total_invoices}
+                            </td>
+                            <td className="px-4 py-3 text-center text-lg font-bold text-green-600 dark:text-green-400">
+                              {report.paid_invoices}
+                            </td>
+                            <td className="px-4 py-3 text-right text-lg font-bold text-gray-900 dark:text-white">
+                              {(report.total_amount || 0).toLocaleString()} so'm
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                            Hisobotlar topilmadi
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
   );
 }
+
+

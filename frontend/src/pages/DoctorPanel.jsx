@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { queueService } from '../services/queueService';
 import { prescriptionService } from '../services/prescriptionService';
 import doctorNurseService from '../services/doctorNurseService';
 import pharmacyService from '../services/pharmacyService';
+import api from '../services/api';
 import Modal from '../components/Modal';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -17,6 +18,12 @@ const DoctorPanel = () => {
   const [myQueue, setMyQueue] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  
+  // QR Code Scanner
+  const [qrSearch, setQrSearch] = useState('');
+  const [showPatientInfoModal, setShowPatientInfoModal] = useState(false);
+  const [scannedPatientInfo, setScannedPatientInfo] = useState(null);
+  const lastScanTimeRef = useRef(0);
   
   // User data
   const user = JSON.parse(localStorage.getItem('user'));
@@ -79,6 +86,73 @@ const DoctorPanel = () => {
       console.error('Load medicines error:', error);
     } finally {
       setLoadingMedicines(false);
+    }
+  };
+
+  // QR kod skanerlash va bemor ma'lumotlarini olish
+  const handleQRScan = async (qrCode) => {
+    try {
+      console.log('=== QR CODE SCANNED ===');
+      console.log('QR Code:', qrCode);
+      
+      // QR kod formatini tekshirish: PATIENT_NUMBER-INVOICE_NUMBER
+      if (!qrCode || !qrCode.includes('-')) {
+        showAlert('Noto\'g\'ri QR kod formati', 'error', 'Xatolik');
+        return;
+      }
+      
+      const [patientNumber, invoiceNumber] = qrCode.split('-');
+      console.log('Patient Number:', patientNumber);
+      console.log('Invoice Number:', invoiceNumber);
+      
+      // Backend'dan bemor va invoice ma'lumotlarini olish
+      const response = await api.get(`/billing/invoice/${invoiceNumber}`);
+      console.log('Invoice response:', response.data);
+      
+      if (response.data.success) {
+        const invoiceData = response.data.data;
+        
+        // Bemor ma'lumotlarini olish
+        const patientResponse = await api.get(`/patients/${invoiceData.patient_id}`);
+        console.log('Patient response:', patientResponse.data);
+        
+        if (patientResponse.data.success) {
+          const patientData = patientResponse.data.data;
+          
+          // Ma'lumotlarni birlashtirish
+          setScannedPatientInfo({
+            patient: patientData,
+            invoice: invoiceData,
+            services: invoiceData.items || []
+          });
+          
+          setShowPatientInfoModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('QR scan error:', error);
+      showAlert('QR kod ma\'lumotlarini yuklashda xatolik', 'error', 'Xatolik');
+    }
+  };
+
+  const handleQRSearchChange = (value) => {
+    const now = Date.now();
+    
+    // Agar oxirgi scan'dan 500ms o'tmagan bo'lsa, ignore qilish (duplicate scan)
+    if (now - lastScanTimeRef.current < 500) {
+      console.log('Duplicate scan detected, ignoring...');
+      return;
+    }
+    
+    // Oxirgi scan vaqtini yangilash
+    lastScanTimeRef.current = now;
+    setQrSearch(value);
+    
+    // Agar QR kod to'liq kiritilgan bo'lsa (masalan, 10+ belgi)
+    if (value.length >= 10 && value.includes('-')) {
+      handleQRScan(value);
+      // Input'ni tozalash
+      setTimeout(() => setQrSearch(''), 500);
     }
   };
 
@@ -422,6 +496,8 @@ const DoctorPanel = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+      <Toaster position="top-right" />
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -446,6 +522,25 @@ const DoctorPanel = () => {
             {t('doctorPanel.refresh')}
           </button>
         </div>
+      </div>
+
+      {/* QR Code Scanner Input */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          <span className="material-symbols-outlined text-base align-middle mr-1">qr_code_scanner</span>
+          QR kod skanerlash
+        </label>
+        <input
+          type="text"
+          value={qrSearch}
+          onChange={(e) => handleQRSearchChange(e.target.value)}
+          placeholder="QR kodni skanerlang yoki kiriting..."
+          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          autoFocus
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          Kassadan berilgan QR kodni shu yerga skanerlang
+        </p>
       </div>
 
       {/* Statistics Cards */}
@@ -1194,6 +1289,151 @@ const DoctorPanel = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Bemor Ma'lumotlari Modal (QR Scan) */}
+      <Modal
+        isOpen={showPatientInfoModal}
+        onClose={() => {
+          setShowPatientInfoModal(false);
+          setScannedPatientInfo(null);
+        }}
+        title="📋 Bemor Ma'lumotlari"
+        size="lg"
+      >
+        {scannedPatientInfo && (
+          <div className="space-y-6">
+            {/* Bemor ma'lumotlari */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
+              <div className="flex items-start gap-4">
+                <div className="size-16 bg-green-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                  <span className="material-symbols-outlined text-3xl">person</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    {scannedPatientInfo.patient.first_name} {scannedPatientInfo.patient.last_name}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">Bemor raqami:</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{scannedPatientInfo.patient.patient_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">Telefon:</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{scannedPatientInfo.patient.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">Tug'ilgan sana:</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {scannedPatientInfo.patient.date_of_birth 
+                          ? new Date(scannedPatientInfo.patient.date_of_birth).toLocaleDateString('uz-UZ')
+                          : 'Kiritilmagan'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">Jins:</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {scannedPatientInfo.patient.gender === 'male' ? 'Erkak' : 'Ayol'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Xizmatlar ro'yxati */}
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">medical_services</span>
+                Qaysi xizmatlar uchun kelgan:
+              </h4>
+              <div className="space-y-3">
+                {scannedPatientInfo.services.map((service, index) => (
+                  <div key={index} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900 dark:text-white">{service.service_name || service.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Miqdor: {service.quantity} x {new Intl.NumberFormat('uz-UZ').format(service.unit_price)} so'm
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">
+                          {new Intl.NumberFormat('uz-UZ').format(service.total_price || (service.quantity * service.unit_price))} so'm
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* To'lov ma'lumotlari */}
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-700 dark:text-gray-300">Jami summa:</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white">
+                  {new Intl.NumberFormat('uz-UZ').format(scannedPatientInfo.invoice.total_amount)} so'm
+                </span>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-700 dark:text-gray-300">To'langan:</span>
+                <span className="text-lg font-semibold text-green-600">
+                  {new Intl.NumberFormat('uz-UZ').format(scannedPatientInfo.invoice.paid_amount)} so'm
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-green-200 dark:border-green-700">
+                <span className="text-gray-700 dark:text-gray-300">Holat:</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  scannedPatientInfo.invoice.payment_status === 'paid' 
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
+                }`}>
+                  {scannedPatientInfo.invoice.payment_status === 'paid' ? 'To\'langan' : 'Qisman to\'langan'}
+                </span>
+              </div>
+            </div>
+
+            {/* Tavsiyalar */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-blue-600 text-2xl flex-shrink-0">info</span>
+                <div>
+                  <p className="font-semibold text-blue-900 dark:text-blue-300 mb-1">Nima qilish kerak:</p>
+                  <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1 list-disc list-inside">
+                    <li>Bemorni qabul qiling va ko'rik o'tkazing</li>
+                    <li>Kerakli tekshiruvlarni o'tkazing</li>
+                    <li>Tashxis qo'ying va retsept yozing</li>
+                    <li>Agar kerak bo'lsa, qo'shimcha xizmatlar buyurtma qiling</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Tugmalar */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPatientInfoModal(false);
+                  setScannedPatientInfo(null);
+                }}
+                className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                Yopish
+              </button>
+              <button
+                onClick={() => {
+                  // Bemor profiliga o'tish
+                  navigate(`/patients/${scannedPatientInfo.patient.id}`);
+                }}
+                className="flex-1 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined">person</span>
+                Bemor Profiliga O'tish
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -60,8 +60,8 @@ const pharmacyService = {
   },
 
   // Dispensing
-  dispenseMedicine: async (data) => {
-    const response = await api.post('/pharmacy/dispense', data);
+  dispenseMedicine: async (medicineId, data) => {
+    const response = await api.post(`/pharmacy/medicines/${medicineId}/dispense`, data);
     return response.data;
   },
 

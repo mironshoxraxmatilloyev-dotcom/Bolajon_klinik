@@ -226,14 +226,14 @@ export default function AmbulatorRoom() {
         toast.error('Ovozni chiqarib bo\'lmadi. Brauzer ruxsat bermagan bo\'lishi mumkin.');
       });
     
-    // 30 soniyadan keyin to'xtatish
+    // 10 soniyadan keyin to'xtatish
     audioTimeoutRef.current = setTimeout(() => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
-        console.log('⏹ Alarm sound stopped after 30 seconds');
+        console.log('⏹ Alarm sound stopped after 10 seconds');
       }
-    }, 30000); // 30 seconds
+    }, 10000); // 10 seconds
   };
 
   const loadFloorData = async () => {

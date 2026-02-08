@@ -66,6 +66,16 @@ const payrollService = {
     return response.data;
   },
 
+  approvePenalty: async (id) => {
+    const response = await api.post(`/payroll/penalties/${id}/approve`);
+    return response.data;
+  },
+
+  rejectPenalty: async (id) => {
+    const response = await api.post(`/payroll/penalties/${id}/reject`);
+    return response.data;
+  },
+
   // Oylik maosh
   calculateMonthly: async (data) => {
     const response = await api.post('/payroll/calculate-monthly', data);

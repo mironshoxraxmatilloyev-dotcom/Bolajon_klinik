@@ -283,7 +283,7 @@ router.get('/orders', authenticate, async (req, res, next) => {
 router.get('/orders/:id', authenticate, async (req, res, next) => {
   try {
     const order = await LabOrder.findById(req.params.id)
-      .populate('patient_id', 'first_name last_name patient_number phone')
+      .populate('patient_id', 'first_name last_name patient_number phone date_of_birth')
       .populate('doctor_id', 'first_name last_name')
       .populate('laborant_id', 'first_name last_name')
       .lean();
@@ -304,6 +304,61 @@ router.get('/orders/:id', authenticate, async (req, res, next) => {
     });
   } catch (error) {
     console.error('Get lab order error:', error);
+    next(error);
+  }
+});
+
+// Get lab order result for viewing/printing
+router.get('/orders/:id/result', authenticate, async (req, res, next) => {
+  try {
+    const order = await LabOrder.findById(req.params.id)
+      .populate('patient_id', 'first_name last_name patient_number phone date_of_birth')
+      .populate('doctor_id', 'first_name last_name')
+      .populate('laborant_id', 'first_name last_name')
+      .lean();
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tahlil buyurtmasi topilmadi'
+      });
+    }
+
+    // Calculate patient age if date_of_birth exists
+    let patientAge = null;
+    if (order.patient_id?.date_of_birth) {
+      const birthDate = new Date(order.patient_id.date_of_birth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      patientAge = age;
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        id: order._id,
+        order_number: order.order_number,
+        test_name: order.test_name,
+        test_type: order.test_type,
+        patient_name: order.patient_id ? `${order.patient_id.first_name} ${order.patient_id.last_name}` : 'Noma\'lum',
+        patient_number: order.patient_id?.patient_number,
+        patient_age: patientAge,
+        doctor_name: order.doctor_id ? `${order.doctor_id.first_name} ${order.doctor_id.last_name}` : null,
+        laborant_name: order.laborant_id ? `${order.laborant_id.first_name} ${order.laborant_id.last_name}` : null,
+        test_results: order.results || [],
+        notes: order.notes,
+        order_date: order.createdAt,
+        completed_at: order.completed_at,
+        approved_at: order.completed_at,
+        status: order.status
+      }
+    });
+  } catch (error) {
+    console.error('Get lab order result error:', error);
     next(error);
   }
 });
@@ -558,23 +613,107 @@ router.delete('/orders/:id', authenticate, authorize('admin'), async (req, res, 
 // Get statistics
 router.get('/stats', authenticate, async (req, res, next) => {
   try {
+    const { date_from, date_to } = req.query;
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Date range query
+    let dateQuery = {};
+    if (date_from) {
+      dateQuery.createdAt = { $gte: new Date(date_from) };
+    }
+    if (date_to) {
+      if (dateQuery.createdAt) {
+        dateQuery.createdAt.$lte = new Date(date_to);
+      } else {
+        dateQuery.createdAt = { $lte: new Date(date_to) };
+      }
+    }
     
     const [
       totalOrders,
       pendingOrders,
       inProgressOrders,
-      completedToday
+      completedToday,
+      todayPatients,
+      todayRevenue
     ] = await Promise.all([
-      LabOrder.countDocuments(),
-      LabOrder.countDocuments({ status: 'pending' }),
-      LabOrder.countDocuments({ status: 'in_progress' }),
+      LabOrder.countDocuments(dateQuery),
+      LabOrder.countDocuments({ ...dateQuery, status: 'pending' }),
+      LabOrder.countDocuments({ ...dateQuery, status: 'in_progress' }),
       LabOrder.countDocuments({
         status: 'completed',
-        completed_at: { $gte: today }
-      })
+        completed_at: { $gte: today, $lt: tomorrow }
+      }),
+      // Bugungi bemorlar soni (unique)
+      LabOrder.distinct('patient_id', {
+        createdAt: { $gte: today, $lt: tomorrow }
+      }).then(ids => ids.length),
+      // Bugungi tushum
+      LabOrder.aggregate([
+        {
+          $match: {
+            status: 'completed',
+            completed_at: { $gte: today, $lt: tomorrow }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$price' }
+          }
+        }
+      ]).then(result => result[0]?.total || 0)
     ]);
+    
+    // Reagent statistics (admin only)
+    let reagentStats = null;
+    if (req.user.role === 'admin' || req.user.role_name === 'admin') {
+      const LabReagent = (await import('../models/LabReagent.js')).default;
+      
+      // Barcha reaktivlarni olish
+      const allReagents = await LabReagent.find({});
+      
+      const now = new Date();
+      let activeCount = 0;
+      let expiredCount = 0;
+      let lowStockCount = 0;
+      let depletedCount = 0;
+      
+      allReagents.forEach(reagent => {
+        const expiryDate = new Date(reagent.expiry_date);
+        const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+        
+        // Tugagan
+        if (reagent.remaining_tests === 0) {
+          depletedCount++;
+        }
+        // Muddati o'tgan yoki 30 kun qolgan
+        else if (daysUntilExpiry < 0 || daysUntilExpiry <= 30) {
+          expiredCount++;
+        }
+        // Kam qolgan (31-90 kun)
+        else if (daysUntilExpiry <= 90) {
+          lowStockCount++;
+        }
+        // Yaroqli (90 kundan ko'p)
+        else {
+          activeCount++;
+        }
+      });
+      
+      reagentStats = {
+        total: allReagents.length,
+        active: activeCount,
+        expired: expiredCount,
+        low_stock: lowStockCount,
+        depleted: depletedCount
+      };
+    }
     
     res.json({
       success: true,
@@ -582,7 +721,10 @@ router.get('/stats', authenticate, async (req, res, next) => {
         total_orders: totalOrders,
         pending_orders: pendingOrders,
         in_progress_orders: inProgressOrders,
-        completed_today: completedToday
+        completed_today: completedToday,
+        today_patients: todayPatients,
+        today_revenue: todayRevenue,
+        reagent_stats: reagentStats
       }
     });
   } catch (error) {
@@ -694,7 +836,7 @@ router.post('/scan-qr', authenticate, authorize('laborant', 'admin'), async (req
 // Submit test results
 router.post('/orders/:id/results', authenticate, authorize('laborant', 'admin'), async (req, res, next) => {
   try {
-    const { test_results, notes } = req.body;
+    const { test_results, notes, reagent_id } = req.body;
     
     if (!test_results || !Array.isArray(test_results)) {
       return res.status(400).json({
@@ -702,33 +844,125 @@ router.post('/orders/:id/results', authenticate, authorize('laborant', 'admin'),
         message: 'Test natijalari majburiy'
       });
     }
-    
-    const order = await LabOrder.findByIdAndUpdate(
-      req.params.id,
-      {
-        results: test_results,
-        notes: notes || '',
-        status: 'completed',
-        completed_at: new Date(),
-        laborant_id: req.user.id
-      },
-      { new: true }
-    ).populate('patient_id', 'first_name last_name patient_number');
-    
-    if (!order) {
+
+    if (!reagent_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reaktiv tanlash majburiy'
+      });
+    }
+
+    // First get the order to get patient_id
+    const existingOrder = await LabOrder.findById(req.params.id);
+    if (!existingOrder) {
       return res.status(404).json({
         success: false,
         message: 'Buyurtma topilmadi'
       });
     }
+
+    const patientId = existingOrder.patient_id;
+    
+    // Update lab order
+    existingOrder.results = test_results;
+    existingOrder.notes = notes || '';
+    existingOrder.status = 'completed';
+    existingOrder.completed_at = new Date();
+    existingOrder.laborant_id = req.user.id;
+    await existingOrder.save();
+
+    // Use reagent
+    const LabReagent = (await import('../models/LabReagent.js')).default;
+    const LabReagentUsage = (await import('../models/LabReagentUsage.js')).default;
+    const Patient = (await import('../models/Patient.js')).default;
+
+    const reagent = await LabReagent.findById(reagent_id);
+    if (!reagent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reaktiv topilmadi'
+      });
+    }
+
+    if (reagent.remaining_tests < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reaktiv yetarli emas'
+      });
+    }
+
+    if (reagent.status === 'expired') {
+      return res.status(400).json({
+        success: false,
+        message: 'Reaktiv muddati o\'tgan'
+      });
+    }
+
+    // Record reagent usage
+    const usage = new LabReagentUsage({
+      reagent: reagent_id,
+      patient: patientId,
+      lab_order: existingOrder._id,
+      test_name: existingOrder.test_name,
+      quantity_used: 1,
+      cost_per_test: reagent.price_per_test,
+      total_cost: reagent.price_per_test * 1,
+      used_by: req.user.id,
+      notes: `Tahlil: ${existingOrder.test_name}`
+    });
+
+    await usage.save();
+
+    // Decrease reagent stock
+    reagent.remaining_tests -= 1;
+    await reagent.save();
+
+    // Add debt to patient
+    const patient = await Patient.findById(patientId);
+    if (patient) {
+      patient.total_debt = (patient.total_debt || 0) + reagent.price_per_test;
+      await patient.save();
+    }
+
+    // Create invoice for reagent cost
+    const Invoice = (await import('../models/Invoice.js')).default;
+    const BillingItem = (await import('../models/BillingItem.js')).default;
+
+    // Generate invoice number
+    const invoiceCount = await Invoice.countDocuments();
+    const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+
+    // Create invoice
+    const invoice = await Invoice.create({
+      patient_id: patientId,
+      invoice_number: invoiceNumber,
+      total_amount: reagent.price_per_test,
+      paid_amount: 0,
+      discount_amount: 0,
+      payment_status: 'pending',
+      notes: `Laboratoriya reaktivi: ${reagent.name} (${existingOrder.test_name})`,
+      created_by: req.user.id
+    });
+
+    // Create billing item
+    await BillingItem.create({
+      billing_id: invoice._id,
+      service_id: reagent._id,
+      service_name: `Lab reaktiv: ${reagent.name}`,
+      quantity: 1,
+      unit_price: reagent.price_per_test,
+      total_price: reagent.price_per_test
+    });
     
     res.json({
       success: true,
-      message: 'Natijalar muvaffaqiyatli kiritildi',
+      message: 'Natijalar kiritildi va reaktiv ishlatildi',
       data: {
-        id: order._id,
-        order_number: order.order_number,
-        status: order.status
+        id: existingOrder._id,
+        order_number: existingOrder.order_number,
+        status: existingOrder.status,
+        reagent_cost: reagent.price_per_test,
+        patient_debt: patient?.total_debt || 0
       }
     });
   } catch (error) {

@@ -225,6 +225,21 @@ router.post('/',
         });
       }
       
+      // Check if patient has paid invoices
+      const Invoice = (await import('../models/Invoice.js')).default;
+      const paidInvoices = await Invoice.countDocuments({
+        patient_id,
+        payment_status: 'paid',
+        qr_code_active: true
+      });
+      
+      if (paidInvoices === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bemor kassada to\'lov qilmagan. Avval to\'lov qiling!'
+        });
+      }
+      
       // Get today's queue count for this doctor
       const today = new Date();
       today.setHours(0, 0, 0, 0);

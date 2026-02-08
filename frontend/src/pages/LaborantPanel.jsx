@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import laboratoryService from '../services/laboratoryService';
+import labReagentService from '../services/labReagentService';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function LaborantPanel() {
@@ -26,6 +27,137 @@ export default function LaborantPanel() {
     ['', ''],
     ['', '']
   ]);
+  
+  // Биохимия uchun maxsus parametrlar
+  const [biochemParams, setBiochemParams] = useState([
+    { name: 'УМУМИЙ ОКСИЛ', value: '', normalRange: '66-85', unit: 'Г/Л' },
+    { name: 'АЛБУМН', value: '', normalRange: '38-51', unit: 'Г/Л' },
+    { name: 'ГЛЮКОЗА', value: '', normalRange: '4,2-6,4', unit: 'Ммоль/л' },
+    { name: 'АЛТ', value: '', normalRange: '0-40', unit: 'Е/Л' },
+    { name: 'АСТ', value: '', normalRange: '0-37', unit: 'Е/Л' },
+    { name: 'УМУМИЙ БИЛЛИРУБИН', value: '', normalRange: '5-21', unit: 'Мкмоль/л' },
+    { name: 'БОҒЛАНМАГАН БИЛЛИРУБИН', value: '', normalRange: '0-3,4', unit: 'Мкмоль/л' },
+    { name: 'БОҒЛАНГАН БИЛЛИРУБИН', value: '', normalRange: '3,4-18,5', unit: 'Мкмоль/л' },
+    { name: 'МОЧЕВИНА', value: '', normalRange: '1,7-8,3', unit: 'Ммоль/л' },
+    { name: 'КРЕАТИНИН', value: '', normalRange: '53-97', unit: 'Мкмоль/л' },
+    { name: 'КАЛИЙ', value: '', normalRange: '3,6-5,3', unit: 'Ммоль/л' },
+    { name: 'КАЛЬЦИЙ', value: '', normalRange: '2,02-2,60', unit: 'Ммоль/л' },
+    { name: 'ТЕМИР', value: '', normalRange: '6,4-28,6', unit: 'Ммоль/л' },
+    { name: 'АЛЬФА-АМИЛАЗА', value: '', normalRange: '28-220', unit: 'Е/Л' },
+    { name: 'УМУМИЙ ХОЛЕСТЕРИН', value: '', normalRange: '2,4-5,1', unit: 'Ммоль/л' },
+    { name: 'С-РЕАКТИВ ОКСИЛ', value: '', normalRange: 'ОТР', unit: '' },
+    { name: 'АНТИСТРЕПТОЛИЗИН-О', value: '', normalRange: 'ОТР', unit: '' },
+    { name: 'РЕВМАТОИДЛИ ОМИЛ', value: '', normalRange: 'ОТР', unit: '' },
+    { name: 'Ишқорий Фосфатаза', value: '', normalRange: '< 15 yosh<644, 15-17 yosh<483', unit: 'Е/Л' },
+    { name: 'МАГНИЙ', value: '', normalRange: '0,8 - 1,0', unit: 'Ммоль/л' }
+  ]);
+
+  // Умумий қон таҳлили uchun parametrlar
+  const [bloodTestParams, setBloodTestParams] = useState([
+    { name: 'WBC\nЛейкоциты', value: '', normalRange: '4,0\n9,0', unit: '10⁹/л' },
+    { name: 'LYM#\nЛимфоциты', value: '', normalRange: '0,8\n4,0', unit: '10⁹/л' },
+    { name: 'Mon#\nМоноциты', value: '', normalRange: '0,1\n1,2', unit: '10⁹/л' },
+    { name: 'Neu#\nНейтрофилы', value: '', normalRange: '2,0\n7,0', unit: '10⁹/л' },
+    { name: 'Lym%\nЛимфоциты', value: '', normalRange: '20,0\n40,0', unit: '%' },
+    { name: 'Mon%\nМоноциты', value: '', normalRange: '5,0\n10,0', unit: '%' },
+    { name: 'Neu%\nНейтрофилы', value: '', normalRange: '50,0\n70,0', unit: '%' },
+    { name: 'RBC\nЭритроциты', value: '', normalRange: '3,9\n6,0', unit: '10¹²/л' },
+    { name: 'HGB\nГемоглобин (М)', value: '', normalRange: '130,0\n170,0', unit: 'г/л' },
+    { name: 'HGB\nГемоглобин (Ж)', value: '', normalRange: '120,0\n150,0', unit: 'г/л' },
+    { name: 'HCT\nГематокрит (М)', value: '', normalRange: '42,0\n54,0', unit: '%' },
+    { name: 'HCT\nГематокрит (Ж)', value: '', normalRange: '35,0\n45,0', unit: '%' },
+    { name: 'MCV\nСредний корпускулярный объём эритроцитов', value: '', normalRange: '80,0\n95,0', unit: 'фл' },
+    { name: 'MCH\nСредний эритроцитарный гемоглобин', value: '', normalRange: '26,0\n34,0', unit: 'пг' },
+    { name: 'MCHC\nСредняя клеточная концентрация гемоглобина', value: '', normalRange: '300,0\n370,0', unit: 'г/л' },
+    { name: 'RDW-CV\nКоэффициент вариации ширины распределения эритроцитов', value: '', normalRange: '11,5\n14,5', unit: '%' },
+    { name: 'RDW-SD\nСтандартное отклонение ширины распределения эритроцитов', value: '', normalRange: '35,0\n45,0', unit: 'фл' },
+    { name: 'PLT\nЧисло тромбоцитов', value: '', normalRange: '180,0\n320,0', unit: '10⁹/л' },
+    { name: 'MPV\nСредний объём тромбоцитов', value: '', normalRange: '7,0\n11,0', unit: 'фл' },
+    { name: 'PDW\nШирина распределения тромбоцитов', value: '', normalRange: '10,0\n18,0', unit: '' },
+    { name: 'PCT\nТромбокрит', value: '', normalRange: '0,1\n0,4', unit: '%' },
+    { name: 'ESR\nСОЭ (М)', value: '', normalRange: '2,0\n10,0', unit: 'мм/час' },
+    { name: 'ESR\nСОЭ (Ж)', value: '', normalRange: '2,0\n15,0', unit: 'мм/час' }
+  ]);
+
+  // Витамин Д uchun parametr
+  const [vitaminDResult, setVitaminDResult] = useState('');
+
+  // TORCH infeksiyasi uchun parametrlar
+  const [torchParams, setTorchParams] = useState([
+    { name: 'ЦМВ-Цитомегаловирус IgG', value: '', normalRange: '0-0.460\nОП' },
+    { name: 'Hsv1/2-Герпес вирус IgG', value: '', normalRange: '0-0.480\nОП' },
+    { name: 'Токсоплазма IgG', value: '', normalRange: '5.0-30\nКП' },
+    { name: 'Микоплазма IgG', value: '', normalRange: '0-0.360\nОП' },
+    { name: 'Уреаплазма IgG', value: '', normalRange: '0-0.354\nОП' },
+    { name: 'Хламидия IgG', value: '', normalRange: '0-0.390\nОП' }
+  ]);
+
+  // Сийдик таҳлили uchun parametrlar
+  const [urineParams, setUrineParams] = useState({
+    miqdori: '',
+    rangi: '',
+    tiniqlik: '',
+    nisbiy_zichlik: '',
+    reaktsiya: '',
+    oqsil: '',
+    qand: '',
+    epiteliy: '',
+    leykotsit: '',
+    eritrotsit: '',
+    tuzlar: '',
+    bakteriya: '',
+    shilimshiq: ''
+  });
+
+  // Гормон таҳлили uchun parametrlar
+  const [hormoneParams, setHormoneParams] = useState([
+    { name: 'ПРЛ-Пролактин', value: '', normalRange: 'Женщины 1.2-19.5 нг/мл\nНе беременные женщине 1,5-18,5 нг/мл\nМужчины 1,8-17,0 нг/мл', unit: 'нг/мл' },
+    { name: 'Т3 свободный-Трийодтиронин', value: '', normalRange: '1,8-4,2', unit: 'нг/мл' },
+    { name: 'Т4 свободный-Тироксин', value: '', normalRange: 'М: 0.8-2.2 мкг/дл\nЖ: 0.7-2.0 мкг/дл', unit: 'мкг/дл' },
+    { name: 'ТТГ-Тиреотропный гормон', value: '', normalRange: '0.3-4.0', unit: 'ммл/дл' },
+    { name: 'Т3 общий-Трийодтиронин', value: '', normalRange: '0.69-2.02', unit: 'нг/мл' },
+    { name: 'Т4 общий-Тироксин', value: '', normalRange: 'М: 4.4-10.8 мкг/дл\nЖ: 4.8-11.6 мкг/дл', unit: 'мкг/дл' },
+    { name: 'Анти ТПО-Антитела к тиреопероксидаза', value: '', normalRange: '0-34', unit: 'МЕ/мл' }
+  ]);
+
+  // Онкомаркер таҳлили uchun parametrlar
+  const [oncomarkerParams, setOncomarkerParams] = useState([
+    { name: 'СА-125- рака яичников', value: '', normalRange: 'Муж: 0-35U/ml Жен: 0-35 U/ml\nБер: 1 трим 0-60 U/ml\nБер: 2 трим 0-150 U/ml\nБер: 3-трим 0-200 U/ml\nВ период лактации 0-80 U/ml\n0-28,0 U/ml', unit: '' },
+    { name: 'СА-15-3- рака молочная железа', value: '', normalRange: '0-37,0 U/ml', unit: '' },
+    { name: 'СА-19-9- рака поджелудочная железа', value: '', normalRange: '0-37,0 U/ml', unit: '' },
+    { name: 'СА-72-4- рака желудка', value: '', normalRange: '0-4,0 U/ml', unit: '' },
+    { name: 'ПСА- Простатический специфический антиген', value: '', normalRange: 'До 2,6 нг/мл (муж до 40лет)\nДо 4,0 нг/мл (муж старше 40лет)', unit: '' },
+    { name: 'РЭА-раковый эмбриональный антиген', value: '', normalRange: '0-4,4 нг/мл ----курящие\n0,2-3,3 нг/мл ---некурящие', unit: '' }
+  ]);
+
+  // Коагулограмма uchun parametrlar
+  const [coagulogramParams, setCoagulogramParams] = useState([
+    { name: 'ПТИ', value: '', normalRange: '80-100', unit: '%' },
+    { name: 'ПТВ', value: '', normalRange: '10.8-16.2', unit: 'СЕК' },
+    { name: 'МНО', value: '', normalRange: '0.8-1.2', unit: '' },
+    { name: 'АЧТВ', value: '', normalRange: '25-41', unit: 'СЕК' },
+    { name: 'ФибГ', value: '', normalRange: '2,0-4,0', unit: 'г/л' }
+  ]);
+
+  // Липидный спектр uchun parametrlar
+  const [lipidParams, setLipidParams] = useState([
+    { name: 'Холестерин общий (ТС)', value: '', normalRange: 'Слабо повышенный уровень -5.7ммол/л\nПовышенный уровень -6.7ммол/л', unit: '' },
+    { name: 'Холестерин-ЛПВП (HDL)', value: '', normalRange: 'Хороший прогноз- >М 1.42 Ж >1.68\nГруппа низкого риска- М 0.9-1.42\n- Ж 1.16-1.68\nГруппа высокого риска- М <0.9\n- Ж <1.16', unit: '' },
+    { name: 'Холестерин-ЛПНП (LDL)', value: '', normalRange: 'Группа низкого риска ИБС- Муж <1.23\n- Жен <1.63\nГруппа высокого риска ИБС- Муж >4.45\n- Жен >4.32', unit: '' },
+    { name: 'Холестерин-ЛПОНП', value: '', normalRange: '0.16-1.04ммол/л', unit: '' },
+    { name: 'Триглицериды (TG)', value: '', normalRange: 'Рекомендуемый уровен-0.1-1.71\nПограничный уровень- 1.71-2.28', unit: '' }
+  ]);
+
+  // Прокальцитонин uchun parametrlar (3 ta test)
+  const [procalcitoninParams, setProcalcitoninParams] = useState([
+    { name: 'Д-димер', value: '', normalRange: '0-285 нг/мл', unit: '' },
+    { name: 'Прокальцитонин', value: '', normalRange: '>0,05 нг/мл', unit: '' },
+    { name: 'Ферритин', value: '', normalRange: '80-120 нг/мл', unit: '' }
+  ]);
+
+  // Тропонин uchun parametr
+  const [troponinResult, setTroponinResult] = useState('');
+
   const [filters, setFilters] = useState({
     date: '',
     test_type: '',
@@ -37,8 +169,13 @@ export default function LaborantPanel() {
   const [history, setHistory] = useState([]);
   const [selectedPatientHistory, setSelectedPatientHistory] = useState(null);
 
+  // Reagent state
+  const [reagents, setReagents] = useState([]);
+  const [selectedReagent, setSelectedReagent] = useState(null);
+
   useEffect(() => {
     loadData();
+    loadReagents();
     const interval = setInterval(loadData, 30000); // 30 soniyada yangilanadi
     return () => clearInterval(interval);
   }, [activeTab]);
@@ -66,6 +203,17 @@ export default function LaborantPanel() {
       toast.error('Ma\'lumotlarni yuklashda xatolik');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReagents = async () => {
+    try {
+      const response = await labReagentService.getReagents({ status: 'active' });
+      if (response.success) {
+        setReagents(response.data.filter(r => r.status === 'active' && r.remaining_tests > 0));
+      }
+    } catch (error) {
+      console.error('Load reagents error:', error);
     }
   };
 
@@ -102,6 +250,7 @@ export default function LaborantPanel() {
 
   const handleOpenResultModal = (order) => {
     setSelectedOrder(order);
+    setSelectedReagent(null);
     // Reset table to 4x2
     setTableRows([
       ['', ''],
@@ -109,6 +258,42 @@ export default function LaborantPanel() {
       ['', ''],
       ['', '']
     ]);
+    // Reset biochem params
+    setBiochemParams(biochemParams.map(p => ({ ...p, value: '' })));
+    // Reset blood test params
+    setBloodTestParams(bloodTestParams.map(p => ({ ...p, value: '' })));
+    // Reset vitamin D
+    setVitaminDResult('');
+    // Reset TORCH params
+    setTorchParams(torchParams.map(p => ({ ...p, value: '' })));
+    // Reset urine params
+    setUrineParams({
+      miqdori: '',
+      rangi: '',
+      tiniqlik: '',
+      nisbiy_zichlik: '',
+      reaktsiya: '',
+      oqsil: '',
+      qand: '',
+      epiteliy: '',
+      leykotsit: '',
+      eritrotsit: '',
+      tuzlar: '',
+      bakteriya: '',
+      shilimshiq: ''
+    });
+    // Reset hormone params
+    setHormoneParams(hormoneParams.map(p => ({ ...p, value: '' })));
+    // Reset oncomarker params
+    setOncomarkerParams(oncomarkerParams.map(p => ({ ...p, value: '' })));
+    // Reset coagulogram params
+    setCoagulogramParams(coagulogramParams.map(p => ({ ...p, value: '' })));
+    // Reset lipid params
+    setLipidParams(lipidParams.map(p => ({ ...p, value: '' })));
+    // Reset procalcitonin params
+    setProcalcitoninParams(procalcitoninParams.map(p => ({ ...p, value: '' })));
+    // Reset troponin
+    setTroponinResult('');
     setResultForm({ test_results: [], notes: '' });
     setShowResultModal(true);
   };
@@ -132,28 +317,308 @@ export default function LaborantPanel() {
 
   const handleSubmitResults = async () => {
     try {
-      // Convert table to text format
-      const tableText = tableRows
-        .filter(row => row[0] || row[1]) // Only include non-empty rows
-        .map(row => `${row[0]}\t${row[1]}`)
-        .join('\n');
+      if (!selectedReagent) {
+        toast.error('Iltimos, reaktiv tanlang');
+        return;
+      }
+
+      const isBiochemistry = selectedOrder?.test_name?.toLowerCase().includes('биохимия') || 
+                             selectedOrder?.test_name?.toLowerCase().includes('biochem');
       
-      const response = await laboratoryService.submitResults(selectedOrder.id, {
-        test_results: [{
+      const isBloodTest = selectedOrder?.test_name?.toLowerCase().includes('умумий қон') || 
+                          selectedOrder?.test_name?.toLowerCase().includes('қон таҳлили') ||
+                          selectedOrder?.test_name?.toLowerCase().includes('blood');
+      
+      const isVitaminD = selectedOrder?.test_name?.toLowerCase().includes('витамин д') || 
+                         selectedOrder?.test_name?.toLowerCase().includes('витамин d') ||
+                         selectedOrder?.test_name?.toLowerCase().includes('vitamin d');
+      
+      const isTorch = selectedOrder?.test_name?.toLowerCase().includes('торч') || 
+                      selectedOrder?.test_name?.toLowerCase().includes('torch') ||
+                      selectedOrder?.test_name?.toLowerCase().includes('тorch');
+      
+      const isUrine = selectedOrder?.test_name?.toLowerCase().includes('сийдик') || 
+                      selectedOrder?.test_name?.toLowerCase().includes('сиёдик') ||
+                      selectedOrder?.test_name?.toLowerCase().includes('мочи') ||
+                      selectedOrder?.test_name?.toLowerCase().includes('urine');
+      
+      const isHormone = selectedOrder?.test_name?.toLowerCase().includes('гормон') || 
+                        selectedOrder?.test_name?.toLowerCase().includes('hormone');
+      
+      const isOncomarker = selectedOrder?.test_name?.toLowerCase().includes('онкомаркер') || 
+                           selectedOrder?.test_name?.toLowerCase().includes('oncomarker') ||
+                           selectedOrder?.test_name?.toLowerCase().includes('онко');
+      
+      const isCoagulogram = selectedOrder?.test_name?.toLowerCase().includes('коагулограмма') || 
+                            selectedOrder?.test_name?.toLowerCase().includes('коагуло') ||
+                            selectedOrder?.test_name?.toLowerCase().includes('coagulo');
+      
+      const isLipid = selectedOrder?.test_name?.toLowerCase().includes('липид') || 
+                      selectedOrder?.test_name?.toLowerCase().includes('lipid');
+      
+      const isProcalcitonin = selectedOrder?.test_name?.toLowerCase().includes('прокальцитонин') || 
+                              selectedOrder?.test_name?.toLowerCase().includes('procalcitonin') ||
+                              selectedOrder?.test_name?.toLowerCase().includes('прокал');
+      
+      const isTroponin = selectedOrder?.test_name?.toLowerCase().includes('тропонин') || 
+                         selectedOrder?.test_name?.toLowerCase().includes('troponin') ||
+                         selectedOrder?.test_name?.toLowerCase().includes('тропон');
+
+      let test_results;
+      
+      if (isBiochemistry) {
+        // Биохимия uchun
+        const hasValues = biochemParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = biochemParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isBloodTest) {
+        // Умумий қон таҳлили uchun
+        const hasValues = bloodTestParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = bloodTestParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isVitaminD) {
+        // Витамин Д uchun
+        if (!vitaminDResult.trim()) {
+          toast.error('Natijani kiriting');
+          return;
+        }
+        
+        test_results = [{
+          parameter_name: '25-OH Vitamin D',
+          value: vitaminDResult,
+          unit: 'нг/мл',
+          normal_range: 'Выраженный дефицит-0,1-9нг/мл\nДостоточный уровень-30-100нг/мл\nУмеренный дефицит-10-29нг/мл\nВозможен токсичуский эффект-101-200нг/мл',
+          is_normal: null
+        }];
+      } else if (isTorch) {
+        // TORCH uchun
+        const hasValues = torchParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = torchParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: '',
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isUrine) {
+        // Сийдик таҳлили uchun
+        const hasValues = Object.values(urineParams).some(v => v.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = [
+          { parameter_name: 'Миқдори', value: urineParams.miqdori, unit: 'л/мл', normal_range: '', is_normal: null },
+          { parameter_name: 'Ранги', value: urineParams.rangi, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Тиниқлиги', value: urineParams.tiniqlik, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Нисбий зичлиги', value: urineParams.nisbiy_zichlik, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Реакция', value: urineParams.reaktsiya, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Оқсил', value: urineParams.oqsil, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Қанд', value: urineParams.qand, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Эпителий', value: urineParams.epiteliy, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Лейкоцит', value: urineParams.leykotsit, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Эритроцит', value: urineParams.eritrotsit, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Тузлар', value: urineParams.tuzlar, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Бактерия', value: urineParams.bakteriya, unit: '', normal_range: '', is_normal: null },
+          { parameter_name: 'Шилимшиқ', value: urineParams.shilimshiq, unit: '', normal_range: '', is_normal: null }
+        ].filter(p => p.value.trim() !== '');
+      } else if (isHormone) {
+        // Гормон таҳлили uchun
+        const hasValues = hormoneParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = hormoneParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isOncomarker) {
+        // Онкомаркер таҳлили uchun
+        const hasValues = oncomarkerParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = oncomarkerParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isCoagulogram) {
+        // Коагулограмма uchun
+        const hasValues = coagulogramParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = coagulogramParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isLipid) {
+        // Липидный спектр uchun
+        const hasValues = lipidParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = lipidParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isProcalcitonin) {
+        // Прокальцитонин uchun (3 ta test)
+        const hasValues = procalcitoninParams.some(p => p.value.trim() !== '');
+        if (!hasValues) {
+          toast.error('Kamida bitta parametr qiymatini kiriting');
+          return;
+        }
+        
+        test_results = procalcitoninParams
+          .filter(p => p.value.trim() !== '')
+          .map(p => ({
+            parameter_name: p.name,
+            value: p.value,
+            unit: p.unit,
+            normal_range: p.normalRange,
+            is_normal: null
+          }));
+      } else if (isTroponin) {
+        // Тропонин uchun
+        if (!troponinResult.trim()) {
+          toast.error('Natijani kiriting');
+          return;
+        }
+        
+        test_results = [{
+          parameter_name: 'Тропонин',
+          value: troponinResult,
+          unit: '',
+          normal_range: 'negative',
+          is_normal: null
+        }];
+      } else {
+        // Oddiy tahlillar uchun
+        const tableText = tableRows
+          .filter(row => row[0] || row[1])
+          .map(row => `${row[0]}\t${row[1]}`)
+          .join('\n');
+        
+        test_results = [{
           parameter_name: 'Natija',
           value: tableText,
           unit: '',
           normal_range: '',
           is_normal: null
-        }],
-        notes: resultForm.notes
+        }];
+      }
+      
+      const response = await laboratoryService.submitResults(selectedOrder.id, {
+        test_results,
+        notes: resultForm.notes,
+        reagent_id: selectedReagent._id,
+        patient_id: selectedOrder.patient_id
       });
       
       if (response.success) {
-        toast.success('Natijalar muvaffaqiyatli kiritildi');
+        toast.success('Natijalar muvaffaqiyatli kiritildi va reaktiv ishlatildi');
         setShowResultModal(false);
         setSelectedOrder(null);
+        setSelectedReagent(null);
+        // Reset biochem params
+        setBiochemParams(biochemParams.map(p => ({ ...p, value: '' })));
+        // Reset blood test params
+        setBloodTestParams(bloodTestParams.map(p => ({ ...p, value: '' })));
+        // Reset vitamin D
+        setVitaminDResult('');
+        // Reset TORCH params
+        setTorchParams(torchParams.map(p => ({ ...p, value: '' })));
+        // Reset urine params
+        setUrineParams({
+          miqdori: '',
+          rangi: '',
+          tiniqlik: '',
+          nisbiy_zichlik: '',
+          reaktsiya: '',
+          oqsil: '',
+          qand: '',
+          epiteliy: '',
+          leykotsit: '',
+          eritrotsit: '',
+          tuzlar: '',
+          bakteriya: '',
+          shilimshiq: ''
+        });
+        // Reset hormone params
+        setHormoneParams(hormoneParams.map(p => ({ ...p, value: '' })));
+        // Reset oncomarker params
+        setOncomarkerParams(oncomarkerParams.map(p => ({ ...p, value: '' })));
+        // Reset coagulogram params
+        setCoagulogramParams(coagulogramParams.map(p => ({ ...p, value: '' })));
+        // Reset lipid params
+        setLipidParams(lipidParams.map(p => ({ ...p, value: '' })));
+        // Reset procalcitonin params
+        setProcalcitoninParams(procalcitoninParams.map(p => ({ ...p, value: '' })));
+        // Reset troponin
+        setTroponinResult('');
         loadData();
+        loadReagents();
       }
     } catch (error) {
       toast.error('Natijalarni kiritishda xatolik');
@@ -339,6 +804,15 @@ export default function LaborantPanel() {
                             className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
                           >
                             Natija kiritish
+                          </button>
+                        )}
+                        {order.status === 'completed' && (
+                          <button
+                            onClick={() => window.open(`/laboratory/result/${order.id}`, '_blank')}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-sm">download</span>
+                            Yuklab olish
                           </button>
                         )}
                       </div>
@@ -606,58 +1080,620 @@ export default function LaborantPanel() {
               </div>
 
               <div className="space-y-4">
-                {/* Natija - Jadval */}
+                {/* Reaktiv tanlash */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold">Natija *</label>
-                    <button
-                      type="button"
-                      onClick={addTableRow}
-                      className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 flex items-center gap-1"
-                    >
-                      <span className="text-lg">+</span>
-                      Qator qo'shish
-                    </button>
+                  <label className="block text-sm font-semibold mb-2">
+                    Qaysi reaktivdan foydalandingiz? <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedReagent?._id || ''}
+                    onChange={(e) => {
+                      const reagent = reagents.find(r => r._id === e.target.value);
+                      setSelectedReagent(reagent);
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    required
+                  >
+                    <option value="">Reaktiv tanlang...</option>
+                    {reagents.map(reagent => (
+                      <option key={reagent._id} value={reagent._id}>
+                        {reagent.name} - {reagent.remaining_tests} ta qolgan ({new Intl.NumberFormat('uz-UZ').format(reagent.price_per_test)} so'm)
+                      </option>
+                    ))}
+                  </select>
+                  {selectedReagent && (
+                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        <span className="font-semibold">Reaktiv:</span> {selectedReagent.name}
+                      </p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        <span className="font-semibold">Narx:</span> {new Intl.NumberFormat('uz-UZ').format(selectedReagent.price_per_test)} so'm
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Bu narx bemorga qarz sifatida yoziladi
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Natija - Биохимия, Умумий қон таҳлили, Витамин Д, TORCH yoki oddiy */}
+                {selectedOrder?.test_name?.toLowerCase().includes('биохимия') || selectedOrder?.test_name?.toLowerCase().includes('biochem') ? (
+                  /* Биохимия uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border px-3 py-2 text-left text-sm font-bold">№</th>
+                            <th className="border px-3 py-2 text-left text-sm font-bold">ТАҲЛИЛ НОМИ</th>
+                            <th className="border px-3 py-2 text-left text-sm font-bold">НАТИЖА</th>
+                            <th className="border px-3 py-2 text-left text-sm font-bold">МЕ'ЁР</th>
+                            <th className="border px-3 py-2 text-left text-sm font-bold">ЎЛЧОВ БИРЛИГИ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {biochemParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border px-3 py-2 text-sm">{index + 1}.</td>
+                              <td className="border px-3 py-2 text-sm font-semibold">{param.name}</td>
+                              <td className="border px-2 py-2">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...biochemParams];
+                                    newParams[index].value = e.target.value;
+                                    setBiochemParams(newParams);
+                                  }}
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                  placeholder="Қиймат"
+                                />
+                              </td>
+                              <td className="border px-3 py-2 text-sm text-blue-600 font-medium whitespace-pre-line">{param.normalRange}</td>
+                              <td className="border px-3 py-2 text-sm text-blue-600 font-medium">{param.unit}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full">
-                      <tbody>
-                        {tableRows.map((row, rowIndex) => (
-                          <tr key={rowIndex} className="border-b last:border-b-0">
-                            <td className="p-0 w-1/2 border-r">
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('умумий қон') || selectedOrder?.test_name?.toLowerCase().includes('қон таҳлили') || selectedOrder?.test_name?.toLowerCase().includes('blood')) ? (
+                  /* Умумий қон таҳлили uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border px-2 py-2 text-center text-sm font-bold text-red-600">Показатель</th>
+                            <th className="border px-2 py-2 text-center text-sm font-bold text-red-600">Результат</th>
+                            <th className="border px-2 py-2 text-center text-sm font-bold text-red-600">Норма<br/>Erkak | Ayol</th>
+                            <th className="border px-2 py-2 text-center text-sm font-bold text-red-600">Единица<br/>измерения</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bloodTestParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border px-2 py-2 text-sm font-semibold whitespace-pre-line">{param.name}</td>
+                              <td className="border px-2 py-2">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...bloodTestParams];
+                                    newParams[index].value = e.target.value;
+                                    setBloodTestParams(newParams);
+                                  }}
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm text-center"
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td className="border px-2 py-2 text-sm text-blue-600 font-semibold text-center whitespace-pre-line">{param.normalRange}</td>
+                              <td className="border px-2 py-2 text-sm text-blue-600 font-semibold text-center">{param.unit}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('витамин д') || selectedOrder?.test_name?.toLowerCase().includes('витамин d') || selectedOrder?.test_name?.toLowerCase().includes('vitamin d')) ? (
+                  /* Витамин Д uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-yellow-600">Наименивование анализа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-yellow-600">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-yellow-600">Норма</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="border-2 border-gray-800 px-4 py-3 text-center font-bold">25-OH Vitamin D</td>
+                            <td className="border-2 border-gray-800 px-3 py-3">
                               <input
                                 type="text"
-                                value={row[0]}
-                                onChange={(e) => updateTableCell(rowIndex, 0, e.target.value)}
-                                className="w-full px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-primary"
-                                placeholder="Parametr"
+                                value={vitaminDResult}
+                                onChange={(e) => setVitaminDResult(e.target.value)}
+                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                placeholder="Natijani kiriting"
                               />
                             </td>
-                            <td className="p-0 w-1/2 relative">
-                              <input
-                                type="text"
-                                value={row[1]}
-                                onChange={(e) => updateTableCell(rowIndex, 1, e.target.value)}
-                                className="w-full px-3 py-2 pr-10 border-0 focus:outline-none focus:ring-2 focus:ring-primary"
-                                placeholder="Qiymat"
-                              />
-                              {tableRows.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeTableRow(rowIndex)}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700"
-                                >
-                                  <span className="text-lg">−</span>
-                                </button>
-                              )}
+                            <td className="border-2 border-gray-800 px-4 py-3 text-sm text-blue-600 font-semibold">
+                              <div className="space-y-1">
+                                <p>Выраженный дефицит-<span className="font-bold">0,1-9нг/мл</span></p>
+                                <p>Достоточный уровень-<span className="font-bold">30-100нг/мл</span></p>
+                                <p>Умеренный дефицит-<span className="font-bold">10-29нг/мл</span></p>
+                                <p>Возможен токсичуский эффект-<span className="font-bold">101-200нг/мл</span></p>
+                              </div>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('торч') || selectedOrder?.test_name?.toLowerCase().includes('torch') || selectedOrder?.test_name?.toLowerCase().includes('тorch')) ? (
+                  /* TORCH infeksiyasi uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-purple-600">Наименивование анализа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-purple-600">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-purple-600">Норма(ОП)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {torchParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border-2 border-gray-800 px-4 py-3 text-left font-bold italic">{param.name}</td>
+                              <td className="border-2 border-gray-800 px-3 py-3">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...torchParams];
+                                    newParams[index].value = e.target.value;
+                                    setTorchParams(newParams);
+                                  }}
+                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold whitespace-pre-line">{param.normalRange}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('сийдик') || selectedOrder?.test_name?.toLowerCase().includes('сиёдик') || selectedOrder?.test_name?.toLowerCase().includes('мочи') || selectedOrder?.test_name?.toLowerCase().includes('urine')) ? (
+                  /* Сийдик таҳлили uchun forma */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                        <h3 className="font-bold text-base mb-3 text-blue-800 dark:text-blue-400">ФИЗИК-КИМЁВИЙ ХОССАСИ</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Миқдори (л/мл)</label>
+                            <input
+                              type="text"
+                              value={urineParams.miqdori}
+                              onChange={(e) => setUrineParams({ ...urineParams, miqdori: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Ранги</label>
+                            <input
+                              type="text"
+                              value={urineParams.rangi}
+                              onChange={(e) => setUrineParams({ ...urineParams, rangi: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Тиниқлиги</label>
+                            <input
+                              type="text"
+                              value={urineParams.tiniqlik}
+                              onChange={(e) => setUrineParams({ ...urineParams, tiniqlik: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Нисбий зичлиги</label>
+                            <input
+                              type="text"
+                              value={urineParams.nisbiy_zichlik}
+                              onChange={(e) => setUrineParams({ ...urineParams, nisbiy_zichlik: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Реакция</label>
+                            <input
+                              type="text"
+                              value={urineParams.reaktsiya}
+                              onChange={(e) => setUrineParams({ ...urineParams, reaktsiya: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                        <h3 className="font-bold text-base mb-3 text-green-800 dark:text-green-400">МИКРОСКОПИЯ</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Оқсил</label>
+                            <input
+                              type="text"
+                              value={urineParams.oqsil}
+                              onChange={(e) => setUrineParams({ ...urineParams, oqsil: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Қанд</label>
+                            <input
+                              type="text"
+                              value={urineParams.qand}
+                              onChange={(e) => setUrineParams({ ...urineParams, qand: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Эпителий</label>
+                            <input
+                              type="text"
+                              value={urineParams.epiteliy}
+                              onChange={(e) => setUrineParams({ ...urineParams, epiteliy: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Лейкоцит</label>
+                            <input
+                              type="text"
+                              value={urineParams.leykotsit}
+                              onChange={(e) => setUrineParams({ ...urineParams, leykotsit: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Эритроцит</label>
+                            <input
+                              type="text"
+                              value={urineParams.eritrotsit}
+                              onChange={(e) => setUrineParams({ ...urineParams, eritrotsit: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Тузлар</label>
+                            <input
+                              type="text"
+                              value={urineParams.tuzlar}
+                              onChange={(e) => setUrineParams({ ...urineParams, tuzlar: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Бактерия</label>
+                            <input
+                              type="text"
+                              value={urineParams.bakteriya}
+                              onChange={(e) => setUrineParams({ ...urineParams, bakteriya: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1">Шилимшиқ</label>
+                            <input
+                              type="text"
+                              value={urineParams.shilimshiq}
+                              onChange={(e) => setUrineParams({ ...urineParams, shilimshiq: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              placeholder="—"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('гормон') || selectedOrder?.test_name?.toLowerCase().includes('hormone')) ? (
+                  /* Гормон таҳлили uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-orange-600">Наименивование анализа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-orange-600">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-orange-600">Норма</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-orange-600">Единица измерения</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {hormoneParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border-2 border-gray-800 px-4 py-3 text-left font-bold">{param.name}</td>
+                              <td className="border-2 border-gray-800 px-3 py-3">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...hormoneParams];
+                                    newParams[index].value = e.target.value;
+                                    setHormoneParams(newParams);
+                                  }}
+                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold whitespace-pre-line">{param.normalRange}</td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold">{param.unit}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('онкомаркер') || selectedOrder?.test_name?.toLowerCase().includes('oncomarker') || selectedOrder?.test_name?.toLowerCase().includes('онко')) ? (
+                  /* Онкомаркер таҳлили uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-red-600">Наименивование анализа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-red-600">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold text-red-600">Норма</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {oncomarkerParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border-2 border-gray-800 px-4 py-3 text-left font-bold">{param.name}</td>
+                              <td className="border-2 border-gray-800 px-3 py-3">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...oncomarkerParams];
+                                    newParams[index].value = e.target.value;
+                                    setOncomarkerParams(newParams);
+                                  }}
+                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold whitespace-pre-line text-sm">{param.normalRange}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('коагулограмма') || selectedOrder?.test_name?.toLowerCase().includes('коагуло') || selectedOrder?.test_name?.toLowerCase().includes('coagulo')) ? (
+                  /* Коагулограмма uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Таҳлил номи</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Натижа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Норма</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Ўлчов бирлиги</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {coagulogramParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center font-bold">{param.name}</td>
+                              <td className="border-2 border-gray-800 px-3 py-3">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...coagulogramParams];
+                                    newParams[index].value = e.target.value;
+                                    setCoagulogramParams(newParams);
+                                  }}
+                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold">{param.normalRange}</td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold">{param.unit}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('липид') || selectedOrder?.test_name?.toLowerCase().includes('lipid')) ? (
+                  /* Липидный спектр uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Показатель</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Норма</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lipidParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border-2 border-gray-800 px-4 py-3 text-left font-bold">{param.name}</td>
+                              <td className="border-2 border-gray-800 px-3 py-3">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...lipidParams];
+                                    newParams[index].value = e.target.value;
+                                    setLipidParams(newParams);
+                                  }}
+                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-left text-blue-600 font-semibold whitespace-pre-line text-sm">{param.normalRange}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('прокальцитонин') || selectedOrder?.test_name?.toLowerCase().includes('procalcitonin') || selectedOrder?.test_name?.toLowerCase().includes('прокал')) ? (
+                  /* Прокальцитонин uchun jadval (3 ta test) */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Наименивование анализа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Норма</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {procalcitoninParams.map((param, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center font-bold">{param.name}</td>
+                              <td className="border-2 border-gray-800 px-3 py-3">
+                                <input
+                                  type="text"
+                                  value={param.value}
+                                  onChange={(e) => {
+                                    const newParams = [...procalcitoninParams];
+                                    newParams[index].value = e.target.value;
+                                    setProcalcitoninParams(newParams);
+                                  }}
+                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                  placeholder="Natijani kiriting"
+                                />
+                              </td>
+                              <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold">{param.normalRange}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (selectedOrder?.test_name?.toLowerCase().includes('тропонин') || selectedOrder?.test_name?.toLowerCase().includes('troponin') || selectedOrder?.test_name?.toLowerCase().includes('тропон')) ? (
+                  /* Тропонин uchun jadval */
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Natija *</label>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Наименивование анализа</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Результат</th>
+                            <th className="border-2 border-gray-800 px-4 py-3 text-center text-sm font-bold">Норма</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="border-2 border-gray-800 px-4 py-3 text-center font-bold">Тропонин</td>
+                            <td className="border-2 border-gray-800 px-3 py-3">
+                              <input
+                                type="text"
+                                value={troponinResult}
+                                onChange={(e) => setTroponinResult(e.target.value)}
+                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-center font-semibold"
+                                placeholder="Natijani kiriting"
+                              />
+                            </td>
+                            <td className="border-2 border-gray-800 px-4 py-3 text-center text-blue-600 font-semibold">negative</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  /* Oddiy tahlillar uchun jadval */
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-semibold">Natija *</label>
+                      <button
+                        type="button"
+                        onClick={addTableRow}
+                        className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 flex items-center gap-1"
+                      >
+                        <span className="text-lg">+</span>
+                        Qator qo'shish
+                      </button>
+                    </div>
+                    
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <tbody>
+                          {tableRows.map((row, rowIndex) => (
+                            <tr key={rowIndex} className="border-b last:border-b-0">
+                              <td className="p-0 w-1/2 border-r">
+                                <input
+                                  type="text"
+                                  value={row[0]}
+                                  onChange={(e) => updateTableCell(rowIndex, 0, e.target.value)}
+                                  className="w-full px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder="Parametr"
+                                />
+                              </td>
+                              <td className="p-0 w-1/2 relative">
+                                <input
+                                  type="text"
+                                  value={row[1]}
+                                  onChange={(e) => updateTableCell(rowIndex, 1, e.target.value)}
+                                  className="w-full px-3 py-2 pr-10 border-0 focus:outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder="Qiymat"
+                                />
+                                {tableRows.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTableRow(rowIndex)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700"
+                                  >
+                                    <span className="text-lg">−</span>
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 {/* Izohlar */}
                 <div>

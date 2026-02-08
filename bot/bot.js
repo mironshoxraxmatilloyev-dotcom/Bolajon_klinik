@@ -57,7 +57,7 @@ function getMainMenuKeyboard() {
 function getStaffMenuKeyboard() {
   return {
     keyboard: [
-      [{ text: '📨 Xabarlar' }],
+      [{ text: '📋 Vazifalar' }, { text: '📨 Xabarlar' }],
       [{ text: '🚪 Chiqish' }]
     ],
     resize_keyboard: true
@@ -630,6 +630,11 @@ bot.on('message', async (msg) => {
     case '📨 Xabarlar':
       await handleMessages(chatId, session);
       break;
+    case '📋 Vazifalar':
+      if (session.userType === 'staff') {
+        await handleTasks(chatId, session);
+      }
+      break;
     case '🔔 Hamshirani chaqirish':
       if (session.userType === 'patient') {
         await handleCallNurse(chatId, session);
@@ -1144,6 +1149,97 @@ async function handleMessages(chatId, session) {
     await bot.sendMessage(chatId, config.MESSAGES.uz.error);
   }
 }
+
+// Vazifalar (Tasks)
+async function handleTasks(chatId, session) {
+  try {
+    await bot.sendMessage(chatId, config.MESSAGES.uz.loading);
+    
+    // Xodim vazifalarini olish
+    const response = await api.get(`/bot/tasks/staff/${session.staff.id || session.staff._id}`);
+    
+    if (response.data.success && response.data.data.length > 0) {
+      const tasks = response.data.data;
+      
+      // Vazifalarni status bo'yicha guruhlash
+      const pendingTasks = tasks.filter(t => t.status === 'pending');
+      const inProgressTasks = tasks.filter(t => t.status === 'in_progress');
+      const completedTasks = tasks.filter(t => t.status === 'completed');
+      const verifiedTasks = tasks.filter(t => t.status === 'verified');
+      
+      let message = '📋 *Sizning vazifalaringiz:*\n\n';
+      
+      // Yangi vazifalar
+      if (pendingTasks.length > 0) {
+        message += '🆕 *Yangi vazifalar:*\n';
+        pendingTasks.forEach((task, index) => {
+          const priorityEmoji = task.priority === 'urgent' ? '🚨' : task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🟢';
+          message += `\n${index + 1}. ${priorityEmoji} *${task.title}*\n`;
+          if (task.description) {
+            message += `   📝 ${task.description}\n`;
+          }
+          if (task.due_date) {
+            message += `   ⏰ Muddat: ${new Date(task.due_date).toLocaleString('uz-UZ')}\n`;
+          }
+          if (task.location_details) {
+            message += `   📍 ${task.location_details}\n`;
+          }
+          message += `   👤 Tayinlagan: ${task.creator_name || 'N/A'}\n`;
+        });
+        message += '\n';
+      }
+      
+      // Jarayondagi vazifalar
+      if (inProgressTasks.length > 0) {
+        message += '⏳ *Jarayondagi vazifalar:*\n';
+        inProgressTasks.forEach((task, index) => {
+          const priorityEmoji = task.priority === 'urgent' ? '🚨' : task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : '🟢';
+          message += `\n${index + 1}. ${priorityEmoji} *${task.title}*\n`;
+          if (task.started_at) {
+            message += `   🕐 Boshlangan: ${new Date(task.started_at).toLocaleString('uz-UZ')}\n`;
+          }
+        });
+        message += '\n';
+      }
+      
+      // Tugatilgan vazifalar
+      if (completedTasks.length > 0) {
+        message += '✅ *Tugatilgan (tasdiqlash kutilmoqda):*\n';
+        completedTasks.forEach((task, index) => {
+          message += `${index + 1}. ${task.title}\n`;
+          if (task.completed_at) {
+            message += `   🕐 Tugatilgan: ${new Date(task.completed_at).toLocaleString('uz-UZ')}\n`;
+          }
+        });
+        message += '\n';
+      }
+      
+      // Tasdiqlangan vazifalar (oxirgi 5 ta)
+      if (verifiedTasks.length > 0) {
+        message += '🎉 *Tasdiqlangan vazifalar (oxirgi 5 ta):*\n';
+        verifiedTasks.slice(0, 5).forEach((task, index) => {
+          message += `${index + 1}. ${task.title}\n`;
+          if (task.verified_at) {
+            message += `   ✓ Tasdiqlangan: ${new Date(task.verified_at).toLocaleString('uz-UZ')}\n`;
+          }
+        });
+      }
+      
+      // Statistika
+      message += `\n📊 *Jami:* ${tasks.length} ta vazifa\n`;
+      message += `🆕 Yangi: ${pendingTasks.length} | ⏳ Jarayonda: ${inProgressTasks.length} | ✅ Tugatilgan: ${completedTasks.length} | 🎉 Tasdiqlangan: ${verifiedTasks.length}`;
+      
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(chatId, '📋 Sizga hozircha vazifa tayinlanmagan.');
+    }
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    await bot.sendMessage(chatId, config.MESSAGES.uz.error);
+  }
+}
+
 
 // Xatoliklarni ushlash
 bot.on('polling_error', (error) => {

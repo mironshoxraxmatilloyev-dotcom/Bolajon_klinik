@@ -47,9 +47,18 @@ import staffSalaryRoutes from './routes/staff-salary.routes.js';
 import patientPortalRoutes from './routes/patient-portal.routes.js';
 import botRoutes from './routes/bot.routes.js';
 import aiChatbotRoutes from './routes/ai-chatbot.routes.js';
+import appointmentRoutes from './routes/appointment.routes.js';
+import expenseRoutes from './routes/expense.routes.js';
+import reportRoutes from './routes/report.routes.js';
+import attendanceRoutes from './routes/attendance.routes.js';
+import labReagentRoutes from './routes/lab-reagent.routes.js';
+import chiefDoctorRoutes from './routes/chief-doctor.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
+import cashierReportRoutes from './routes/cashier-report.routes.js';
 
 // Import services
 import { startTreatmentNotificationService } from './services/treatmentNotificationService.js';
+import { startDailyReportScheduler } from './services/doctorDailyReportService.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -154,6 +163,14 @@ app.use(`/api/${API_VERSION}/staff-salary`, staffSalaryRoutes);
 app.use(`/api/${API_VERSION}/patient-portal`, patientPortalRoutes);
 app.use(`/api/${API_VERSION}/bot`, botRoutes);
 app.use(`/api/${API_VERSION}/ai-chatbot`, aiChatbotRoutes);
+app.use(`/api/${API_VERSION}/appointments`, appointmentRoutes);
+app.use(`/api/${API_VERSION}/expenses`, expenseRoutes);
+app.use(`/api/${API_VERSION}/reports`, reportRoutes);
+app.use(`/api/${API_VERSION}/attendance`, attendanceRoutes);
+app.use(`/api/${API_VERSION}/lab-reagents`, labReagentRoutes);
+app.use(`/api/${API_VERSION}/chief-doctor`, chiefDoctorRoutes);
+app.use(`/api/${API_VERSION}/settings`, settingsRoutes);
+app.use(`/api/${API_VERSION}/cashier-reports`, cashierReportRoutes);
 
 // WebSocket for real-time updates
 io.on('connection', (socket) => {
@@ -202,6 +219,10 @@ connectMongoDB().then(() => {
     // Start treatment notification service
     startTreatmentNotificationService();
     logger.info('🔔 Treatment notification service started');
+    
+    // Start daily report scheduler for doctors
+    startDailyReportScheduler();
+    logger.info('📊 Daily report scheduler started (19:00 daily)');
   });
 }).catch(error => {
   logger.error('Failed to connect to MongoDB:', error);

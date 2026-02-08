@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate, authorize } from '../middleware/auth.js';
 import Task from '../models/Task.js';
 import Staff from '../models/Staff.js';
+import { sendTaskNotification } from '../services/telegramService.js';
 
 const router = express.Router();
 
@@ -50,9 +51,31 @@ router.post('/create',
       });
 
       const populated = await Task.findById(task._id)
-        .populate('assigned_to', 'first_name last_name role')
+        .populate('assigned_to', 'first_name last_name role telegram_chat_id')
         .populate('created_by', 'first_name last_name')
         .lean();
+
+      // Send Telegram notification to assigned staff
+      console.log('=== SENDING TELEGRAM NOTIFICATION ===');
+      console.log('Staff:', staff.first_name, staff.last_name);
+      console.log('Telegram Chat ID:', staff.telegram_chat_id);
+      console.log('Notifications enabled:', staff.telegram_notifications_enabled);
+      
+      if (staff.telegram_chat_id && staff.telegram_notifications_enabled !== false) {
+        const creator = await Staff.findById(req.user.id).select('first_name last_name').lean();
+        const result = await sendTaskNotification(staff, task, creator);
+        console.log('📱 Telegram notification result:', result);
+        
+        if (result.success) {
+          console.log('✅ Telegram notification sent successfully');
+        } else {
+          console.log('❌ Telegram notification failed:', result.error || result.message);
+        }
+      } else {
+        console.log('⚠️ Staff has no Telegram chat ID or notifications disabled');
+        console.log('   - telegram_chat_id:', staff.telegram_chat_id || 'MISSING');
+        console.log('   - notifications_enabled:', staff.telegram_notifications_enabled);
+      }
 
       res.json({
         success: true,

@@ -6,75 +6,69 @@ const labReagentSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  category: {
-    type: String,
-    enum: ['reagent', 'consumable', 'equipment', 'chemical', 'other'],
-    default: 'reagent'
-  },
-  unit: {
-    type: String,
-    enum: ['ml', 'l', 'mg', 'g', 'kg', 'piece', 'box', 'pack'],
-    default: 'ml'
-  },
-  quantity: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  unit_price: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  reorder_level: {
-    type: Number,
-    default: 10,
-    min: 0
-  },
-  expiry_date: {
-    type: Date
-  },
-  storage_condition: {
-    type: String,
-    enum: ['room_temperature', 'refrigerated', 'frozen', 'dark', 'special'],
-    default: 'room_temperature'
-  },
-  manufacturer: {
+  country_of_origin: {
     type: String,
     trim: true
   },
-  lot_number: {
+  expiry_date: {
+    type: Date,
+    required: true
+  },
+  total_tests: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  remaining_tests: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  total_price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  price_per_test: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  notes: {
     type: String,
     trim: true
   },
   status: {
     type: String,
-    enum: ['in_stock', 'low_stock', 'out_of_stock', 'expired'],
-    default: 'in_stock'
+    enum: ['active', 'low_stock', 'expired', 'depleted'],
+    default: 'active'
   },
-  notes: {
-    type: String
+  created_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff',
+    required: true
   }
 }, {
   timestamps: true
 });
 
-// Indexes
+// Indexlar
 labReagentSchema.index({ name: 1 });
-labReagentSchema.index({ category: 1 });
 labReagentSchema.index({ status: 1 });
 labReagentSchema.index({ expiry_date: 1 });
 
-// Auto-update status based on quantity and expiry
+// Status'ni avtomatik yangilash
 labReagentSchema.pre('save', function() {
-  if (this.quantity === 0) {
-    this.status = 'out_of_stock';
-  } else if (this.quantity <= this.reorder_level) {
-    this.status = 'low_stock';
-  } else if (this.expiry_date && this.expiry_date < new Date()) {
+  const now = new Date();
+  
+  if (this.remaining_tests === 0) {
+    this.status = 'depleted';
+  } else if (this.expiry_date < now) {
     this.status = 'expired';
+  } else if (this.remaining_tests <= this.total_tests * 0.2) {
+    this.status = 'low_stock';
   } else {
-    this.status = 'in_stock';
+    this.status = 'active';
   }
 });
 

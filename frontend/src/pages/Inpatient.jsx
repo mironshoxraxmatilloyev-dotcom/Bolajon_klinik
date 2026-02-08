@@ -65,6 +65,19 @@ export default function Inpatient() {
   const [showTreatmentModal, setShowTreatmentModal] = useState(false);
   const [treatmentNotification, setTreatmentNotification] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+  
+  // Mutaxasis biriktirish modali
+  const [showSpecialistModal, setShowSpecialistModal] = useState(false);
+  const [showSpecialistListModal, setShowSpecialistListModal] = useState(false);
+  const [selectedBedForSpecialist, setSelectedBedForSpecialist] = useState(null);
+  const [assignedSpecialists, setAssignedSpecialists] = useState([]);
+  const [specialistForm, setSpecialistForm] = useState({
+    specialist_type: '',
+    doctor_name: '',
+    appointment_time: '',
+    price: '',
+    notes: ''
+  });
 
   const showConfirm = (message, onConfirm, options = {}) => {
     setConfirmModal({ 
@@ -227,14 +240,14 @@ export default function Inpatient() {
         toast.error('Ovozni chiqarib bo\'lmadi. Brauzer ruxsat bermagan bo\'lishi mumkin.');
       });
     
-    // 30 soniyadan keyin to'xtatish
+    // 10 soniyadan keyin to'xtatish
     audioTimeoutRef.current = setTimeout(() => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
-        console.log('⏹ Alarm sound stopped after 30 seconds');
+        console.log('⏹ Alarm sound stopped after 10 seconds');
       }
-    }, 30000); // 30 seconds
+    }, 10000); // 10 seconds
   };
 
   const loadFloorData = async () => {
@@ -606,6 +619,108 @@ export default function Inpatient() {
     setFilteredPatients(filtered);
   };
 
+  // Biriktirilgan mutaxasislarni yuklash
+  const loadAssignedSpecialists = async (patientId) => {
+    try {
+      console.log('=== LOADING SPECIALISTS ===');
+      console.log('Patient ID:', patientId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1'}/appointments/patient/${patientId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      
+      console.log('Response:', data);
+      
+      if (data.success) {
+        setAssignedSpecialists(data.data || []);
+        console.log('Specialists set:', data.data);
+      } else {
+        setAssignedSpecialists([]);
+        console.log('No specialists found');
+      }
+    } catch (error) {
+      console.error('Load specialists error:', error);
+      setAssignedSpecialists([]);
+    }
+  };
+
+  // Mutaxasis biriktirish
+  const handleAssignSpecialist = async (e) => {
+    e.preventDefault();
+    
+    console.log('=== ASSIGN SPECIALIST ===');
+    console.log('Form data:', specialistForm);
+    console.log('Selected bed:', selectedBedForSpecialist);
+    
+    if (!specialistForm.specialist_type || !specialistForm.doctor_name || !specialistForm.appointment_time || !specialistForm.price) {
+      toast.error('Barcha majburiy maydonlarni to\'ldiring');
+      return;
+    }
+    
+    try {
+      const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1'}/appointments/specialist`;
+      console.log('API URL:', apiUrl);
+      
+      const requestBody = {
+        patient_id: selectedBedForSpecialist.patient.patient_id,
+        doctor_name: specialistForm.doctor_name,
+        specialist_type: specialistForm.specialist_type,
+        appointment_time: specialistForm.appointment_time,
+        price: parseFloat(specialistForm.price),
+        notes: specialistForm.notes,
+        admission_id: selectedBedForSpecialist.patient.admission_id
+      };
+      console.log('Request body:', requestBody);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (data.success) {
+        toast.success('Mutaxasis muvaffaqiyatli biriktirildi va hisob-faktura yaratildi!');
+        
+        // Formani tozalash
+        setSpecialistForm({
+          specialist_type: '',
+          doctor_name: '',
+          appointment_time: '',
+          price: '',
+          notes: ''
+        });
+        
+        // Mutaxasis biriktirish modalini yopish
+        setShowSpecialistModal(false);
+        
+        // Biriktirilgan mutaxasislarni qayta yuklash
+        await loadAssignedSpecialists(selectedBedForSpecialist.patient.patient_id);
+        
+        // Biriktirilgan mutaxasislar modalini ochish
+        setShowSpecialistListModal(true);
+        
+        // Ma'lumotlarni yangilash
+        loadData();
+      } else {
+        console.error('Error response:', data);
+        toast.error(data.message || 'Xatolik yuz berdi');
+      }
+    } catch (error) {
+      console.error('Assign specialist error:', error);
+      toast.error('Xatolik: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -855,11 +970,24 @@ export default function Inpatient() {
                                 playAlarmSound={playAlarmSound}
                               >
                                 <div
+                                  onClick={() => {
+                                    // Faqat band koykalar uchun mutaxasislar ro'yxatini ko'rsatish
+                                    if (frontendStatus === 'occupied' && bedDetails.patient_id && !isReadOnly) {
+                                      setSelectedBedForSpecialist({
+                                        bed: bed,
+                                        patient: bedDetails,
+                                        room: room
+                                      });
+                                      // Biriktirilgan mutaxasislarni yuklash
+                                      loadAssignedSpecialists(bedDetails.patient_id);
+                                      setShowSpecialistListModal(true);
+                                    }
+                                  }}
                                   className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
                                     frontendStatus === 'available'
                                       ? 'bg-green-50 border-green-500 dark:bg-green-900/20'
                                       : frontendStatus === 'occupied'
-                                      ? 'bg-red-50 border-red-500 dark:bg-red-900/20'
+                                      ? 'bg-red-50 border-red-500 dark:bg-red-900/20 cursor-pointer hover:shadow-md'
                                       : frontendStatus === 'cleaning'
                                       ? 'bg-gray-50 border-gray-500 dark:bg-gray-900/20'
                                       : 'bg-yellow-50 border-yellow-500 dark:bg-yellow-900/20'
@@ -897,7 +1025,10 @@ export default function Inpatient() {
                                   
                                   {!isReadOnly && (
                                     <button
-                                      onClick={() => handleBedStatusToggle(bed, bed.status)}
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Koyka click'ini to'xtatish
+                                        handleBedStatusToggle(bed, bed.status);
+                                      }}
                                       className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                                         frontendStatus === 'available'
                                           ? 'bg-red-500 text-white hover:bg-red-600'
@@ -1179,6 +1310,259 @@ export default function Inpatient() {
                 Bekor qilish
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Biriktirilgan mutaxasislar ro'yxati modali */}
+      {showSpecialistListModal && selectedBedForSpecialist && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-2xl">
+              <div>
+                <h3 className="text-2xl font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-3xl">medical_information</span>
+                  Biriktirilgan mutaxasislar
+                </h3>
+                <p className="text-sm opacity-90 mt-1">
+                  Bemor: {selectedBedForSpecialist.patient.first_name} {selectedBedForSpecialist.patient.last_name}
+                </p>
+                <p className="text-xs opacity-75">
+                  Xona {selectedBedForSpecialist.room.room_number}, Ko'rpa {selectedBedForSpecialist.bed.bed_number}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSpecialistListModal(false);
+                  setSelectedBedForSpecialist(null);
+                  setAssignedSpecialists([]);
+                }}
+                className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              >
+                <span className="material-symbols-outlined text-3xl">close</span>
+              </button>
+            </div>
+
+            {/* Mutaxasislar ro'yxati */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {assignedSpecialists.length === 0 ? (
+                <div className="text-center py-12">
+                  <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">person_off</span>
+                  <p className="text-gray-500 dark:text-gray-400">Hali mutaxasis biriktirilmagan</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {assignedSpecialists.map((specialist, index) => (
+                    <div key={index} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">person</span>
+                            <p className="font-bold text-lg">{specialist.doctor_name}</p>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-gray-600 dark:text-gray-400">
+                              <span className="font-semibold">Mutaxasis:</span> {specialist.specialist_type_label || specialist.specialist_type}
+                            </p>
+                            <p className="text-gray-600 dark:text-gray-400">
+                              <span className="font-semibold">Kelish vaqti:</span> {new Date(specialist.appointment_time).toLocaleString('uz-UZ')}
+                            </p>
+                            <p className="text-gray-600 dark:text-gray-400">
+                              <span className="font-semibold">Narx:</span> {specialist.price?.toLocaleString()} so'm
+                            </p>
+                            {specialist.notes && (
+                              <p className="text-gray-600 dark:text-gray-400">
+                                <span className="font-semibold">Izoh:</span> {specialist.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          specialist.status === 'completed' 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                            : specialist.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        }`}>
+                          {specialist.status === 'completed' ? 'Bajarildi' : 
+                           specialist.status === 'cancelled' ? 'Bekor qilindi' : 
+                           'Rejalashtirilgan'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer - Mutaxasis biriktirish tugmasi */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setShowSpecialistListModal(false);
+                  setShowSpecialistModal(true);
+                }}
+                className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined">person_add</span>
+                Mutaxasis biriktirish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mutaxasis biriktirish modali */}
+      {showSpecialistModal && selectedBedForSpecialist && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-2xl">
+              <div>
+                <h3 className="text-2xl font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-3xl">person_add</span>
+                  Mutaxasis biriktirish
+                </h3>
+                <p className="text-sm opacity-90 mt-1">
+                  Bemor: {selectedBedForSpecialist.patient.first_name} {selectedBedForSpecialist.patient.last_name}
+                </p>
+                <p className="text-xs opacity-75">
+                  Xona {selectedBedForSpecialist.room.room_number}, Ko'rpa {selectedBedForSpecialist.bed.bed_number}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSpecialistModal(false);
+                  setSelectedBedForSpecialist(null);
+                  setSpecialistForm({
+                    specialist_type: '',
+                    doctor_name: '',
+                    appointment_time: '',
+                    price: '',
+                    notes: ''
+                  });
+                }}
+                className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              >
+                <span className="material-symbols-outlined text-3xl">close</span>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleAssignSpecialist} className="p-6 space-y-4">
+              {/* Mutaxasis turi */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Mutaxasis turi <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={specialistForm.specialist_type}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, specialist_type: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:border-primary focus:outline-none dark:bg-gray-700 dark:text-white"
+                  required
+                >
+                  <option value="">Tanlang...</option>
+                  <option value="therapist">Terapevt</option>
+                  <option value="surgeon">Xirurg</option>
+                  <option value="cardiologist">Kardiolog</option>
+                  <option value="neurologist">Nevrolog</option>
+                  <option value="pediatrician">Pediatr</option>
+                  <option value="gynecologist">Ginekolog</option>
+                  <option value="orthopedist">Ortoped</option>
+                  <option value="dermatologist">Dermatolog</option>
+                  <option value="ophthalmologist">Oftalmolog</option>
+                  <option value="ent">LOR</option>
+                </select>
+              </div>
+
+              {/* Shifokor ism-familiyasi */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Shifokor ism-familiyasi <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={specialistForm.doctor_name}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, doctor_name: e.target.value })}
+                  placeholder="Masalan: Alisher Navoiy"
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:border-primary focus:outline-none dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+
+              {/* Kelish vaqti */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Kelish vaqti <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={specialistForm.appointment_time}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, appointment_time: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:border-primary focus:outline-none dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+
+              {/* Narx */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Narx (so'm) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={specialistForm.price}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, price: e.target.value })}
+                  placeholder="Masalan: 150000"
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:border-primary focus:outline-none dark:bg-gray-700 dark:text-white"
+                  required
+                  min="0"
+                />
+              </div>
+
+              {/* Izoh */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Izoh (ixtiyoriy)
+                </label>
+                <textarea
+                  value={specialistForm.notes}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, notes: e.target.value })}
+                  placeholder="Qo'shimcha ma'lumot..."
+                  rows="3"
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:border-primary focus:outline-none dark:bg-gray-700 dark:text-white resize-none"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined">check</span>
+                  Biriktirish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSpecialistModal(false);
+                    setSelectedBedForSpecialist(null);
+                    setSpecialistForm({
+                      specialist_type: '',
+                      doctor_name: '',
+                      appointment_time: '',
+                      price: '',
+                      notes: ''
+                    });
+                  }}
+                  className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold transition-colors"
+                >
+                  Bekor qilish
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

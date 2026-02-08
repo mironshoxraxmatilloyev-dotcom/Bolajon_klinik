@@ -66,6 +66,8 @@ const StaffManagementAdvanced = () => {
       'laborant': 'Laborant',
       'pharmacist': 'Dorixonachi',
       'sanitar': 'Tozalovchi',
+      'masseur': 'Massajchi',
+      'speech_therapist': 'Logoped',
       'patient': 'Bemor'
     };
     return roleNames[roleName?.toLowerCase()] || roleName;
@@ -79,6 +81,8 @@ const StaffManagementAdvanced = () => {
       'Laborant': 'laborant',
       'Dorixonachi': 'pharmacist',
       'Tozalovchi': 'sanitar',
+      'Massajchi': 'masseur',
+      'Logoped': 'speech_therapist',
       'Bemor': 'patient'
     };
     return roleMap[displayName] || displayName?.toLowerCase();

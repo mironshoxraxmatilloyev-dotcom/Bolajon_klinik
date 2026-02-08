@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import nurseService from '../services/nurseService';
 import doctorNurseService from '../services/doctorNurseService';
 import communicationService from '../services/communicationService';
+import patientService from '../services/patientService';
+import pharmacyService from '../services/pharmacyService';
 import toast, { Toaster } from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
@@ -41,13 +43,38 @@ export default function NursePanel() {
   const [showCompleteTreatmentModal, setShowCompleteTreatmentModal] = useState(false);
   const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [treatmentNotes, setTreatmentNotes] = useState('');
+  
+  // Medicine Cabinet
+  const [medicines, setMedicines] = useState([]);
+  const [showDispenseModal, setShowDispenseModal] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState(null);
+  const [dispenseData, setDispenseData] = useState({
+    patient_id: '',
+    quantity: 1,
+    notes: ''
+  });
 
   useEffect(() => {
     loadData();
+    loadPatients();
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [activeTab, selectedFloor, selectedStatus]);
+  
+  const loadPatients = async () => {
+    try {
+      console.log('=== LOADING PATIENTS ===');
+      const response = await patientService.getPatients();
+      console.log('Patients response:', response);
+      if (response.success) {
+        console.log('Patients data:', response.data);
+        setPatients(response.data || []);
+      }
+    } catch (error) {
+      console.error('Load patients error:', error);
+    }
+  };
 
   // Audio notification setup
   useEffect(() => {
@@ -103,7 +130,7 @@ export default function NursePanel() {
         }
       }
       
-      if (activeTab === 'patients' || activeTab === 'messages') {
+      if (activeTab === 'messages') {
         const patientsData = await nurseService.getPatients({ floor: selectedFloor });
         console.log('Patients data:', patientsData);
         if (patientsData.success) setPatients(patientsData.data);
@@ -119,6 +146,12 @@ export default function NursePanel() {
         const historyData = await nurseService.getHistory();
         console.log('History data:', historyData);
         if (historyData.success) setHistory(historyData.data);
+      }
+      
+      if (activeTab === 'medicine-cabinet') {
+        const medicinesData = await pharmacyService.getMedicines({ floor: selectedFloor });
+        console.log('Medicines data:', medicinesData);
+        if (medicinesData.medicines) setMedicines(medicinesData.medicines);
       }
     } catch (error) {
       console.error('Load error:', error);
@@ -162,6 +195,55 @@ export default function NursePanel() {
       }
     } catch (error) {
       toast.error('Xatolik yuz berdi');
+    }
+  };
+  
+  const handleOpenDispenseModal = (medicine) => {
+    setSelectedMedicine(medicine);
+    setDispenseData({
+      patient_id: '',
+      quantity: 1,
+      notes: ''
+    });
+    setShowDispenseModal(true);
+  };
+  
+  const handleDispenseMedicine = async () => {
+    try {
+      console.log('=== DISPENSE MEDICINE ===');
+      console.log('Selected medicine:', selectedMedicine);
+      console.log('Dispense data:', dispenseData);
+      
+      if (!dispenseData.patient_id) {
+        toast.error('Iltimos, bemorni tanlang');
+        return;
+      }
+      
+      if (!dispenseData.quantity || dispenseData.quantity < 1) {
+        toast.error('Iltimos, miqdorni kiriting');
+        return;
+      }
+      
+      if (dispenseData.quantity > selectedMedicine.quantity) {
+        toast.error('Dori yetarli emas');
+        return;
+      }
+      
+      const medicineId = selectedMedicine._id || selectedMedicine.id;
+      console.log('Medicine ID:', medicineId);
+      console.log('Sending data:', { ...dispenseData });
+      
+      const response = await pharmacyService.dispenseMedicine(medicineId, dispenseData);
+      
+      if (response.success) {
+        toast.success('Dori muvaffaqiyatli berildi!');
+        setShowDispenseModal(false);
+        loadData();
+      }
+    } catch (error) {
+      console.error('Dispense medicine error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Xatolik yuz berdi');
     }
   };
 
@@ -290,7 +372,7 @@ export default function NursePanel() {
             {[
               { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
               { id: 'treatments', label: 'Muolajalar', icon: 'medication' },
-              { id: 'patients', label: 'Bemorlar', icon: 'bed' },
+              { id: 'medicine-cabinet', label: 'Dori shkafi', icon: 'medical_services' },
               { id: 'calls', label: 'Chaqiruvlar', icon: 'notifications' },
               { id: 'messages', label: 'Xabarlar', icon: 'mail' },
               { id: 'history', label: 'Tarix', icon: 'history' }
@@ -495,41 +577,50 @@ export default function NursePanel() {
             </div>
           )}
 
-          {activeTab === 'patients' && (
+          {activeTab === 'medicine-cabinet' && (
             <div className="space-y-4">
-              <select
-                value={selectedFloor}
-                onChange={(e) => setSelectedFloor(e.target.value)}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 border rounded-lg text-sm sm:text-base dark:bg-gray-800 dark:border-gray-700"
-              >
-                <option value="">Barcha qavatlar</option>
-                <option value="1">1-qavat</option>
-                <option value="2">2-qavat</option>
-                <option value="3">3-qavat</option>
-              </select>
-              
-              {patients.length === 0 ? (
-                <p className="text-center py-12 text-gray-600 dark:text-gray-400">Bemorlar topilmadi</p>
+              <h3 className="text-xl font-bold">Dori shkafi</h3>
+              {medicines.length === 0 ? (
+                <div className="text-center py-12">
+                  <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">medical_services</span>
+                  <p className="text-gray-600 dark:text-gray-400">Dorilar topilmadi</p>
+                </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  {patients.map(patient => (
-                    <div key={patient.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-3 sm:p-4">
-                      <div className="flex items-center gap-2 sm:gap-3 mb-3">
-                        <div className="size-10 sm:size-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-xl sm:text-2xl">person</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {medicines.map(medicine => (
+                    <div key={medicine._id || medicine.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-lg">{medicine.name}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">{medicine.category}</p>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-sm sm:text-base truncate">{patient.patient_name}</p>
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{patient.patient_number}</p>
-                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          medicine.quantity > medicine.reorder_level 
+                            ? 'bg-green-100 text-green-700' 
+                            : medicine.quantity > 0 
+                            ? 'bg-yellow-100 text-yellow-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {medicine.quantity} dona
+                        </span>
                       </div>
-                      <div className="space-y-1 text-xs sm:text-sm">
-                        <p><span className="font-semibold">Xona:</span> {patient.room_number}</p>
-                        <p><span className="font-semibold">Ko'rpa:</span> {patient.bed_number}</p>
-                        <p className="truncate"><span className="font-semibold">Shifokor:</span> {patient.doctor_name}</p>
-                        <p className="truncate"><span className="font-semibold">Tashxis:</span> {patient.diagnosis}</p>
-                        <p className="text-orange-600 dark:text-orange-400"><span className="font-semibold">Kutilayotgan:</span> {patient.pending_treatments}</p>
+                      
+                      <div className="space-y-2 text-sm mb-3">
+                        <p><span className="font-semibold">Narxi:</span> {medicine.unit_price?.toLocaleString()} so'm</p>
+                        {medicine.expiry_date && (
+                          <p><span className="font-semibold">Yaroqlilik:</span> {new Date(medicine.expiry_date).toLocaleDateString('uz-UZ')}</p>
+                        )}
                       </div>
+                      
+                      {medicine.quantity > 0 && (
+                        <button
+                          onClick={() => handleOpenDispenseModal(medicine)}
+                          className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center gap-2"
+                        >
+                          <span className="material-symbols-outlined text-lg">remove_circle</span>
+                          Bemorga berish
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -801,6 +892,99 @@ export default function NursePanel() {
                 >
                   <span className="material-symbols-outlined text-lg">send</span>
                   Yuborish
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dispense Medicine Modal */}
+      {showDispenseModal && selectedMedicine && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">Dori berish</h3>
+              <button
+                onClick={() => setShowDispenseModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Dori ma'lumotlari */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="size-12 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
+                    <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">medication</span>
+                  </div>
+                  <div>
+                    <p className="font-bold">{selectedMedicine.name}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">{selectedMedicine.category}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Mavjud: {selectedMedicine.quantity} dona</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Bemor tanlash */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">Bemor *</label>
+                <select
+                  value={dispenseData.patient_id}
+                  onChange={(e) => setDispenseData({ ...dispenseData, patient_id: e.target.value })}
+                  className="w-full px-4 py-3 border dark:border-gray-700 dark:bg-gray-900 rounded-lg"
+                  required
+                >
+                  <option value="">Bemorni tanlang...</option>
+                  {patients.map(patient => (
+                    <option key={patient.id || patient._id} value={patient.id || patient._id}>
+                      {patient.first_name} {patient.last_name} - {patient.patient_number}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Miqdor */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">Miqdor *</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={selectedMedicine.quantity}
+                  value={dispenseData.quantity}
+                  onChange={(e) => setDispenseData({ ...dispenseData, quantity: parseInt(e.target.value) || 1 })}
+                  className="w-full px-4 py-3 border dark:border-gray-700 dark:bg-gray-900 rounded-lg"
+                  required
+                />
+              </div>
+              
+              {/* Izoh */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">Izoh (ixtiyoriy)</label>
+                <textarea
+                  value={dispenseData.notes}
+                  onChange={(e) => setDispenseData({ ...dispenseData, notes: e.target.value })}
+                  className="w-full px-4 py-3 border dark:border-gray-700 dark:bg-gray-900 rounded-lg"
+                  rows="3"
+                  placeholder="Izoh yozing..."
+                />
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDispenseModal(false)}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  onClick={handleDispenseMedicine}
+                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+                >
+                  Berish
                 </button>
               </div>
             </div>

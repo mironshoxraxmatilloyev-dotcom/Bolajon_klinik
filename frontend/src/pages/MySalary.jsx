@@ -41,11 +41,17 @@ export default function MySalary() {
         staffSalaryService.getMyBonuses()
       ]);
 
+      console.log('💰 Salary response:', salaryResponse);
+      console.log('🎁 Bonuses response:', bonusesResponse);
+
       if (salaryResponse.success) {
         setSalaryData(salaryResponse.data);
       }
 
       if (bonusesResponse.success) {
+        console.log('📋 Setting bonuses data:', bonusesResponse.data);
+        console.log('📋 Penalties count:', bonusesResponse.data.penalties?.length);
+        console.log('📋 Penalties:', bonusesResponse.data.penalties);
         setBonusesData(bonusesResponse.data);
       }
 
@@ -475,27 +481,80 @@ export default function MySalary() {
                 )}
               </div>
 
-              {/* Penalties */}
+              {/* Penalties - Pending */}
+              {bonusesData.penalties.filter(p => p.status === 'pending').length > 0 && (
+                <div>
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span>Tasdiqlash Kutilmoqda</span>
+                    <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm rounded-full">
+                      {bonusesData.penalties.filter(p => p.status === 'pending').length}
+                    </span>
+                  </h3>
+                  <div className="space-y-2">
+                    {bonusesData.penalties
+                      .filter(p => p.status === 'pending')
+                      .map(penalty => (
+                        <div key={penalty.id} className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold">{penalty.penalty_type}</p>
+                                <span className="px-2 py-0.5 bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 text-xs rounded-full font-semibold">
+                                  ⏳ Kutilmoqda
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{penalty.reason}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatDate(penalty.penalty_date)} • {getMonthName(penalty.month)} {penalty.year}
+                              </p>
+                            </div>
+                            <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
+                              -{formatCurrency(penalty.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Penalties - Approved */}
               <div>
-                <h3 className="text-xl font-bold mb-4">Jarimalar</h3>
-                {bonusesData.penalties.length === 0 ? (
-                  <p className="text-center py-8 text-gray-500 dark:text-gray-400">Jarimalar yo'q</p>
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <span>Tasdiqlangan Jarimalar</span>
+                  {bonusesData.penalties.filter(p => p.status === 'approved').length > 0 && (
+                    <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded-full">
+                      {bonusesData.penalties.filter(p => p.status === 'approved').length}
+                    </span>
+                  )}
+                </h3>
+                {bonusesData.penalties.filter(p => p.status === 'approved').length === 0 ? (
+                  <p className="text-center py-8 text-gray-500 dark:text-gray-400">Tasdiqlangan jarimalar yo'q</p>
                 ) : (
                   <div className="space-y-2">
-                    {bonusesData.penalties.map(penalty => (
-                      <div key={penalty.id} className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-semibold">{penalty.penalty_type}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{penalty.reason}</p>
-                            <p className="text-xs text-gray-500 mt-1">{formatDate(penalty.penalty_date)}</p>
+                    {bonusesData.penalties
+                      .filter(p => p.status === 'approved')
+                      .map(penalty => (
+                        <div key={penalty.id} className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold">{penalty.penalty_type}</p>
+                                <span className="px-2 py-0.5 bg-red-200 dark:bg-red-900/50 text-red-800 dark:text-red-300 text-xs rounded-full font-semibold">
+                                  ✓ Tasdiqlangan
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{penalty.reason}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatDate(penalty.penalty_date)} • {getMonthName(penalty.month)} {penalty.year}
+                              </p>
+                            </div>
+                            <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                              -{formatCurrency(penalty.amount)}
+                            </p>
                           </div>
-                          <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                            -{formatCurrency(penalty.amount)}
-                          </p>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
               </div>

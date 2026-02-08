@@ -79,6 +79,12 @@ export const laboratoryService = {
     return response.data;
   },
   
+  // Buyurtma natijasini olish (to'liq ma'lumot bilan)
+  getOrderResult: async (orderId) => {
+    const response = await api.get(`/laboratory/orders/${orderId}/result`);
+    return response.data;
+  },
+  
   // ============================================
   // STATISTIKA
   // ============================================

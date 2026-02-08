@@ -12,6 +12,18 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// DEBUG: Check current user role
+router.get('/debug/me',
+  authenticate,
+  async (req, res) => {
+    res.json({
+      success: true,
+      user: req.user,
+      message: 'This is your current user info'
+    });
+  }
+);
+
 // Validation schemas
 const createInvoiceSchema = Joi.object({
   patient_id: Joi.string().required(),
@@ -39,7 +51,7 @@ const addPaymentSchema = Joi.object({
  */
 router.get('/stats',
   authenticate,
-  authorize('admin', 'cashier'),
+  authorize('admin', 'cashier', 'receptionist'),
   async (req, res, next) => {
     try {
       const today = new Date();
@@ -220,7 +232,7 @@ router.get('/services',
  */
 router.post('/invoices',
   authenticate,
-  authorize('admin', 'cashier'),
+  authorize('admin', 'cashier', 'receptionist'),
   async (req, res, next) => {
     const session = await mongoose.startSession();
     
@@ -235,7 +247,17 @@ router.post('/invoices',
 
       await session.startTransaction();
 
-      const { patient_id, items, payment_method, paid_amount, discount_amount, notes } = req.body;
+      const { patient_id, items, payment_method, paid_amount, discount_amount, notes, doctor_id } = req.body;
+
+      // Get patient to check last visit
+      const patient = await Patient.findById(patient_id);
+      if (!patient) {
+        await session.abortTransaction();
+        return res.status(404).json({
+          success: false,
+          message: 'Bemor topilmadi'
+        });
+      }
 
       // Generate invoice number
       const invoiceCount = await Invoice.countDocuments();
@@ -271,8 +293,57 @@ router.post('/invoices',
         });
       }
 
-      // Apply discount
-      const discountAmt = discount_amount || 0;
+      // Calculate revisit discount
+      let revisitDiscount = 0;
+      let revisitDiscountReason = '';
+      
+      if (patient.last_visit_date) {
+        const lastVisit = new Date(patient.last_visit_date);
+        lastVisit.setHours(0, 0, 0, 0); // Faqat sanani solishtirish
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Faqat sanani solishtirish
+        
+        const daysDiff = Math.floor((today - lastVisit) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff === 0) {
+          // Bugun allaqachon qabul bo'lgan - 100% chegirma (bepul)
+          revisitDiscount = totalAmount;
+          revisitDiscountReason = `Bugungi qayta qabul - 100% chegirma (BEPUL)`;
+        } else if (daysDiff >= 1 && daysDiff <= 3) {
+          // 1-3 kun: 100% chegirma (bepul, faqat birinchi to'lov)
+          revisitDiscount = totalAmount;
+          revisitDiscountReason = `Qayta qabul (${daysDiff} kun ichida) - 100% chegirma`;
+        } else if (daysDiff >= 4 && daysDiff <= 7) {
+          // 4-7 kun: 50% chegirma
+          revisitDiscount = totalAmount * 0.50;
+          revisitDiscountReason = `Qayta qabul (${daysDiff} kun ichida) - 50% chegirma`;
+        }
+        // 8+ kun: Chegirma yo'q
+      }
+
+      // Apply discount with validation
+      let discountAmt = discount_amount || 0;
+      
+      // Add revisit discount to manual discount
+      if (revisitDiscount > 0) {
+        discountAmt += revisitDiscount;
+      }
+      
+      // Qabulxonachi uchun 20% chegirma cheklovi (faqat manual discount uchun)
+      const userRole = req.user.role?.toLowerCase() || '';
+      if (userRole === 'reception' || userRole === 'qabulxona' || userRole === 'receptionist') {
+        const manualDiscount = discount_amount || 0;
+        const maxDiscount = totalAmount * 0.20; // 20% chegirma
+        if (manualDiscount > maxDiscount) {
+          await session.abortTransaction();
+          return res.status(400).json({
+            success: false,
+            message: `Qabulxonachi maksimal 20% chegirma bera oladi. Maksimal: ${maxDiscount.toFixed(2)} so'm`
+          });
+        }
+      }
+      
       totalAmount = totalAmount - discountAmt;
 
       // Determine payment status
@@ -285,7 +356,7 @@ router.post('/invoices',
       }
 
       // Create invoice
-      const invoice = await Invoice.create([{
+      const invoiceData = {
         patient_id,
         invoice_number: invoiceNumber,
         total_amount: totalAmount,
@@ -293,9 +364,27 @@ router.post('/invoices',
         discount_amount: discountAmt,
         payment_status: paymentStatus,
         payment_method,
-        notes,
+        notes: revisitDiscountReason ? `${revisitDiscountReason}${notes ? '. ' + notes : ''}` : notes,
         created_by: req.user.id
-      }], { session });
+      };
+
+      // Add doctor_id to metadata if provided
+      if (doctor_id) {
+        invoiceData.metadata = {
+          doctor_id: doctor_id
+        };
+      }
+      
+      // Add revisit discount info to metadata
+      if (revisitDiscount > 0) {
+        invoiceData.metadata = {
+          ...invoiceData.metadata,
+          revisit_discount: revisitDiscount,
+          revisit_discount_reason: revisitDiscountReason
+        };
+      }
+
+      const invoice = await Invoice.create([invoiceData], { session });
 
       // Create invoice items
       for (const item of invoiceItems) {
@@ -321,7 +410,7 @@ router.post('/invoices',
         }], { session });
       }
 
-      // Update patient's current balance
+      // Update patient's current balance and last visit date
       const balanceResult = await Invoice.aggregate([
         {
           $match: { patient_id: new mongoose.Types.ObjectId(patient_id) }
@@ -343,6 +432,7 @@ router.post('/invoices',
         patient_id,
         { 
           current_balance: calculatedBalance,
+          last_visit_date: new Date(),
           updated_at: new Date()
         },
         { session }
@@ -371,7 +461,9 @@ router.post('/invoices',
         message: 'Hisob-faktura muvaffaqiyatli yaratildi',
         data: {
           ...invoice[0].toObject(),
-          items: invoiceItems
+          items: invoiceItems,
+          revisit_discount: revisitDiscount,
+          revisit_discount_reason: revisitDiscountReason
         }
       });
     } catch (error) {
@@ -388,7 +480,7 @@ router.post('/invoices',
  */
 router.get('/invoices',
   authenticate,
-  authorize('admin', 'cashier'),
+  authorize('admin', 'cashier', 'receptionist'),
   async (req, res, next) => {
     try {
       const { patient_id, payment_status, from_date, to_date, limit = 50, offset = 0 } = req.query;
@@ -448,7 +540,7 @@ router.get('/invoices',
  */
 router.get('/invoices/:id',
   authenticate,
-  authorize('admin', 'cashier'),
+  authorize('admin', 'cashier', 'receptionist'),
   async (req, res, next) => {
     try {
       // Get invoice
@@ -511,7 +603,7 @@ router.get('/invoices/:id',
  */
 router.post('/invoices/:id/payment',
   authenticate,
-  authorize('admin', 'cashier'),
+  authorize('admin', 'cashier', 'receptionist'),
   async (req, res, next) => {
     const session = await mongoose.startSession();
     
@@ -557,10 +649,25 @@ router.post('/invoices/:id/payment',
         paymentStatus = 'paid';
       }
 
+      // Generate QR code if fully paid
+      let qrCode = invoice.qr_code;
+      let qrCodeActive = invoice.qr_code_active;
+      
+      if (paymentStatus === 'paid' && !qrCode) {
+        // Generate unique QR code: PATIENT_NUMBER-INVOICE_NUMBER
+        const patient = await Patient.findById(invoice.patient_id).session(session);
+        qrCode = `${patient.patient_number}-${invoice.invoice_number}`;
+        qrCodeActive = true;
+      } else if (paymentStatus === 'paid') {
+        qrCodeActive = true;
+      }
+
       // Update invoice
       invoice.paid_amount = newPaidAmount;
       invoice.payment_status = paymentStatus;
       invoice.payment_method = payment_method;
+      invoice.qr_code = qrCode;
+      invoice.qr_code_active = qrCodeActive;
       invoice.updated_at = new Date();
       await invoice.save({ session });
 
@@ -629,7 +736,7 @@ router.post('/invoices/:id/payment',
  */
 router.get('/transactions',
   authenticate,
-  authorize('admin', 'cashier'),
+  authorize('admin', 'cashier', 'receptionist'),
   async (req, res, next) => {
     try {
       const { patient_id, transaction_type, from_date, to_date, limit = 50, offset = 0 } = req.query;

@@ -11,26 +11,40 @@ const RoleBasedRedirect = ({ children }) => {
     if (!user) return;
 
     // Support both nested role object and direct role_name field
-    const roleName = user.role?.name || user.role_name;
+    const roleName = (user.role?.name || user.role_name)?.toLowerCase();
     const currentPath = location.pathname;
 
-    // Agar dashboard'da bo'lsa va Doctor bo'lsa, /doctor ga yo'naltirish
-    if (currentPath === '/dashboard' && (roleName === 'Doctor' || roleName === 'Shifokor')) {
-      navigate('/doctor', { replace: true });
-    }
-    
-    // Agar boshqa role'lar uchun ham kerak bo'lsa
-    if (currentPath === '/dashboard') {
-      if (roleName === 'Reception' || roleName === 'Qabulxona') {
-        navigate('/queue', { replace: true });
-      } else if (roleName === 'Cashier' || roleName === 'Kassa') {
-        navigate('/cashier', { replace: true });
-      } else if (roleName === 'Nurse' || roleName === 'Hamshira') {
-        navigate('/nurse', { replace: true });
-      } else if (roleName === 'Lab' || roleName === 'Laborant') {
-        navigate('/lab', { replace: true });
-      } else if (roleName === 'Tozalovchi' || roleName === 'Cleaner') {
-        navigate('/sanitar', { replace: true });
+    // Har bir role uchun sidebar'dagi birinchi sahifaga yo'naltirish
+    // Faqat /dashboard yoki root path'da bo'lganda
+    if (currentPath === '/dashboard' || currentPath === '/') {
+      let defaultPath = '/dashboard'; // Admin va Manager uchun default
+
+      // Role'ga qarab birinchi sahifani aniqlash
+      if (roleName === 'doctor' || roleName === 'shifokor') {
+        defaultPath = '/dashboard'; // Dashboard - birinchi
+      } else if (roleName === 'chief_doctor') {
+        defaultPath = '/chief-doctor'; // Bosh shifokor paneli - birinchi
+      } else if (roleName === 'reception' || roleName === 'qabulxona' || roleName === 'receptionist') {
+        defaultPath = '/patients'; // Bemorlar - birinchi
+      } else if (roleName === 'cashier' || roleName === 'kassa') {
+        defaultPath = '/cashier'; // Kassa - birinchi
+      } else if (roleName === 'nurse' || roleName === 'hamshira') {
+        defaultPath = '/ambulator'; // Xonalar - birinchi
+      } else if (roleName === 'lab' || roleName === 'laborant') {
+        defaultPath = '/lab'; // Laborant Dashboard - birinchi
+      } else if (roleName === 'cleaner' || roleName === 'tozalovchi') {
+        defaultPath = '/sanitar'; // Tozalovchi paneli - birinchi
+      } else if (roleName === 'pharmacy' || roleName === 'dorixona' || roleName === 'pharmacist') {
+        defaultPath = '/pharmacy'; // Dorixona - birinchi
+      } else if (roleName === 'masseur' || roleName === 'massajchi') {
+        defaultPath = '/masseur'; // Massajchi paneli - birinchi
+      } else if (roleName === 'speechtherapist' || roleName === 'logoped' || roleName === 'speech_therapist') {
+        defaultPath = '/speech-therapist'; // Logoped paneli - birinchi
+      }
+
+      // Faqat agar hozirgi path /dashboard yoki / bo'lsa, redirect qilish
+      if (currentPath === '/dashboard' || currentPath === '/') {
+        navigate(defaultPath, { replace: true });
       }
     }
   }, [user, location.pathname, navigate]);

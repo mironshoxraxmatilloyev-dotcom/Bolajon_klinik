@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import pharmacyService from '../services/pharmacyService';
+import patientService from '../services/patientService';
 import toast, { Toaster } from 'react-hot-toast';
 import MySalary from './MySalary';
 
@@ -12,8 +13,9 @@ export default function PharmacyPanel() {
   
   // User role tekshirish
   const isPharmacyStaff = user?.role?.name === 'pharmacist' || user?.role_name === 'pharmacist';
+  const isNurse = user?.role?.name === 'nurse' || user?.role_name === 'nurse' || user?.role_name === 'Hamshira';
   const isAdmin = user?.role?.name === 'admin' || user?.role_name === 'admin';
-  const canManagePharmacy = isAdmin || isPharmacyStaff;
+  const canManagePharmacy = isAdmin || isPharmacyStaff || isNurse;
   
   // Dashboard
   const [stats, setStats] = useState({});
@@ -39,12 +41,20 @@ export default function PharmacyPanel() {
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
   const [showEditRequestModal, setShowEditRequestModal] = useState(false);
   const [showAcceptRequestModal, setShowAcceptRequestModal] = useState(false);
+  const [showDispenseModal, setShowDispenseModal] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [editingRequest, setEditingRequest] = useState(null);
   const [acceptingRequest, setAcceptingRequest] = useState(null);
   const [acceptData, setAcceptData] = useState({
     expiry_date: '',
     unit_price: 0
   });
+  const [dispenseData, setDispenseData] = useState({
+    patient_id: '',
+    quantity: 1,
+    notes: ''
+  });
+  const [patients, setPatients] = useState([]);
   const [newMedicine, setNewMedicine] = useState({
     name: '',
     category: 'tablet',
@@ -70,7 +80,22 @@ export default function PharmacyPanel() {
   
   useEffect(() => {
     loadData();
+    loadPatients();
   }, [activeTab, selectedFloor]); // selectedFloor qo'shildi
+  
+  const loadPatients = async () => {
+    try {
+      console.log('=== LOADING PATIENTS ===');
+      const response = await patientService.getPatients();
+      console.log('Patients response:', response);
+      if (response.success) {
+        console.log('Patients data:', response.data);
+        setPatients(response.data || []);
+      }
+    } catch (error) {
+      console.error('Load patients error:', error);
+    }
+  };
   
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -97,6 +122,55 @@ export default function PharmacyPanel() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const handleOpenDispenseModal = (medicine) => {
+    setSelectedMedicine(medicine);
+    setDispenseData({
+      patient_id: '',
+      quantity: 1,
+      notes: ''
+    });
+    setShowDispenseModal(true);
+  };
+  
+  const handleDispenseMedicine = async () => {
+    try {
+      console.log('=== DISPENSE MEDICINE ===');
+      console.log('Selected medicine:', selectedMedicine);
+      console.log('Dispense data:', dispenseData);
+      
+      if (!dispenseData.patient_id) {
+        toast.error('Iltimos, bemorni tanlang');
+        return;
+      }
+      
+      if (!dispenseData.quantity || dispenseData.quantity < 1) {
+        toast.error('Iltimos, miqdorni kiriting');
+        return;
+      }
+      
+      if (dispenseData.quantity > selectedMedicine.quantity) {
+        toast.error('Dori yetarli emas');
+        return;
+      }
+      
+      const medicineId = selectedMedicine._id || selectedMedicine.id;
+      console.log('Medicine ID:', medicineId);
+      console.log('Sending data:', { ...dispenseData });
+      
+      const response = await pharmacyService.dispenseMedicine(medicineId, dispenseData);
+      
+      if (response.success) {
+        toast.success('Dori muvaffaqiyatli berildi!');
+        setShowDispenseModal(false);
+        loadData();
+      }
+    } catch (error) {
+      console.error('Dispense medicine error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Xatolik yuz berdi');
     }
   };
   
@@ -313,6 +387,17 @@ export default function PharmacyPanel() {
                               </div>
                             )}
                           </div>
+                          
+                          {/* Ishlatish tugmasi */}
+                          {canManagePharmacy && parseFloat(medicine.quantity || 0) > 0 && (
+                            <button
+                              onClick={() => handleOpenDispenseModal(medicine)}
+                              className="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 text-sm font-semibold"
+                            >
+                              <span className="material-symbols-outlined text-lg">remove_circle</span>
+                              Bemorga berish
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -1062,6 +1147,116 @@ export default function PharmacyPanel() {
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 Qabul qilish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Dispense Modal - Dori ishlatish */}
+      {showDispenseModal && selectedMedicine && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold">Dori berish</h3>
+              <button
+                onClick={() => setShowDispenseModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <p className="font-semibold text-lg">{selectedMedicine.name}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Mavjud: {selectedMedicine.quantity} {selectedMedicine.unit || 'dona'}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Narx: {(selectedMedicine.unit_price || 0).toLocaleString()} so'm
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Bemor tanlash */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  Bemor <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={dispenseData.patient_id}
+                  onChange={(e) => {
+                    console.log('Selected patient ID:', e.target.value);
+                    setDispenseData({ ...dispenseData, patient_id: e.target.value });
+                  }}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                  required
+                >
+                  <option value="">Bemorni tanlang...</option>
+                  {patients.map(patient => {
+                    const patientId = patient._id || patient.id;
+                    const patientName = `${patient.first_name} ${patient.last_name} - ${patient.patient_number}`;
+                    console.log('Patient option:', { id: patientId, name: patientName });
+                    return (
+                      <option key={patientId} value={patientId}>
+                        {patientName}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Miqdor */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  Miqdor <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={dispenseData.quantity}
+                  onChange={(e) => setDispenseData({ ...dispenseData, quantity: parseInt(e.target.value) || 1 })}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                  min="1"
+                  max={selectedMedicine.quantity}
+                  required
+                />
+              </div>
+
+              {/* Izoh */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">Izoh</label>
+                <textarea
+                  value={dispenseData.notes}
+                  onChange={(e) => setDispenseData({ ...dispenseData, notes: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                  rows="3"
+                  placeholder="Qo'shimcha izoh..."
+                />
+              </div>
+
+              {/* Jami narx */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Jami narx:</strong> {((selectedMedicine.unit_price || 0) * dispenseData.quantity).toLocaleString()} so'm
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                  Bu narx bemorga qarz sifatida yoziladi
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowDispenseModal(false)}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleDispenseMedicine}
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+              >
+                Berish
               </button>
             </div>
           </div>

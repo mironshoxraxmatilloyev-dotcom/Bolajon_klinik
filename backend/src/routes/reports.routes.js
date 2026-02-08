@@ -6,6 +6,7 @@ import Patient from '../models/Patient.js';
 import BillingItem from '../models/BillingItem.js';
 import Admission from '../models/Admission.js';
 import LabOrder from '../models/LabOrder.js';
+import Expense from '../models/Expense.js';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -20,6 +21,8 @@ router.get('/dashboard',
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
       
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const startOfYear = new Date(today.getFullYear(), 0, 1);
@@ -29,7 +32,9 @@ router.get('/dashboard',
         todayPatients,
         todayRevenue,
         todayInvoices,
-        todayLabOrders
+        todayLabOrders,
+        todayInpatientRevenue,
+        todayExpenses
       ] = await Promise.all([
         Patient.countDocuments({ created_at: { $gte: today } }),
         Transaction.aggregate([
@@ -47,14 +52,67 @@ router.get('/dashboard',
           }
         ]),
         Invoice.countDocuments({ created_at: { $gte: today } }),
-        LabOrder.countDocuments({ createdAt: { $gte: today } })
+        LabOrder.countDocuments({ createdAt: { $gte: today } }),
+        // Bugungi statsionar daromadi
+        Admission.aggregate([
+          {
+            $match: {
+              admission_date: { $gte: today },
+              status: { $in: ['active', 'discharged'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'billing',
+              let: { patientId: '$patient_id', admissionDate: '$admission_date' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ['$patient_id', '$$patientId'] },
+                        { $gte: ['$created_at', '$$admissionDate'] }
+                      ]
+                    }
+                  }
+                }
+              ],
+              as: 'invoices'
+            }
+          },
+          {
+            $unwind: { path: '$invoices', preserveNullAndEmptyArrays: true }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$invoices.paid_amount' }
+            }
+          }
+        ]),
+        // Bugungi xarajatlar
+        Expense.aggregate([
+          {
+            $match: {
+              date: { $gte: today, $lt: tomorrow }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$amount' }
+            }
+          }
+        ])
       ]);
 
       // Month's stats
       const [
         monthPatients,
         monthRevenue,
-        monthInvoices
+        monthInvoices,
+        monthInpatientRevenue,
+        monthExpenses
       ] = await Promise.all([
         Patient.countDocuments({ created_at: { $gte: startOfMonth } }),
         Transaction.aggregate([
@@ -71,7 +129,58 @@ router.get('/dashboard',
             }
           }
         ]),
-        Invoice.countDocuments({ created_at: { $gte: startOfMonth } })
+        Invoice.countDocuments({ created_at: { $gte: startOfMonth } }),
+        // Statsionar daromadi - Admission modelidan
+        Admission.aggregate([
+          {
+            $match: {
+              admission_date: { $gte: startOfMonth },
+              status: { $in: ['active', 'discharged'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'billing',
+              let: { patientId: '$patient_id', admissionDate: '$admission_date' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ['$patient_id', '$$patientId'] },
+                        { $gte: ['$created_at', '$$admissionDate'] }
+                      ]
+                    }
+                  }
+                }
+              ],
+              as: 'invoices'
+            }
+          },
+          {
+            $unwind: { path: '$invoices', preserveNullAndEmptyArrays: true }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$invoices.paid_amount' }
+            }
+          }
+        ]),
+        // Oylik xarajatlar
+        Expense.aggregate([
+          {
+            $match: {
+              date: { $gte: startOfMonth }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$amount' }
+            }
+          }
+        ])
       ]);
 
       // Year's stats
@@ -147,12 +256,20 @@ router.get('/dashboard',
           today: {
             patients: todayPatients,
             revenue: todayRevenue[0]?.total || 0,
+            inpatient_revenue_50_percent: (todayInpatientRevenue[0]?.total || 0) * 0.5,
+            total_revenue_with_inpatient: (todayRevenue[0]?.total || 0) + ((todayInpatientRevenue[0]?.total || 0) * 0.5),
+            expenses: todayExpenses[0]?.total || 0,
+            net_revenue: ((todayRevenue[0]?.total || 0) + ((todayInpatientRevenue[0]?.total || 0) * 0.5)) - (todayExpenses[0]?.total || 0),
             invoices: todayInvoices,
             lab_orders: todayLabOrders
           },
           month: {
             patients: monthPatients,
             revenue: monthRevenue[0]?.total || 0,
+            inpatient_revenue_50_percent: (monthInpatientRevenue[0]?.total || 0) * 0.5,
+            total_revenue_with_inpatient: (monthRevenue[0]?.total || 0) + ((monthInpatientRevenue[0]?.total || 0) * 0.5),
+            expenses: monthExpenses[0]?.total || 0,
+            net_revenue: ((monthRevenue[0]?.total || 0) + ((monthInpatientRevenue[0]?.total || 0) * 0.5)) - (monthExpenses[0]?.total || 0),
             invoices: monthInvoices
           },
           year: {

@@ -18,26 +18,69 @@ const DashboardLayout = ({ children }) => {
   };
 
   const navigation = [
+    // 1. Bosh sahifa
     { name: t('nav.dashboard'), icon: 'dashboard', path: '/dashboard', roles: ['Admin', 'Administrator', 'Manager', 'Menejer', 'Shifokor', 'Doctor'] },
-    { name: t('nav.doctorPanel'), icon: 'medical_services', path: '/doctor', roles: ['Shifokor', 'Doctor'] },
-    { name: 'Hamshira Paneli', icon: 'medical_services', path: '/nurse', roles: ['Hamshira', 'Nurse'] },
-    { name: 'Tozalovchi Paneli', icon: 'cleaning_services', path: '/sanitar', roles: ['Tozalovchi', 'Cleaner'] },
-    { name: 'Mening Vazifalarim', icon: 'task_alt', path: '/my-tasks', roles: ['Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Laborant', 'Lab', 'Tozalovchi', 'Cleaner', 'Dorixona', 'Pharmacy', 'Qabulxona', 'Reception', 'Kassa', 'Cashier'] },
-    { name: 'Mening Maoshim', icon: 'account_balance_wallet', path: '/my-salary', roles: ['Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Laborant', 'Lab', 'Tozalovchi', 'Cleaner'] },
-    { name: t('nav.patients'), icon: 'groups', path: '/patients', roles: ['Admin', 'Administrator', 'Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Qabulxona', 'Reception', 'receptionist'] },
+    
+    // 2. Qabulxona - Bemorlar qabul qilish
+    { name: t('nav.patients'), icon: 'groups', path: '/patients', roles: ['Admin', 'Administrator', 'Shifokor', 'Doctor', 'Qabulxona', 'Reception', 'receptionist'] },
     { name: t('nav.queue'), icon: 'format_list_numbered', path: '/queue', roles: ['Admin', 'Administrator', 'Qabulxona', 'Reception', 'receptionist', 'Shifokor', 'Doctor'] },
+    
+    // 3. Kassa - To'lovlar
+    { name: t('nav.cashier'), icon: 'payments', path: '/cashier', roles: ['Admin', 'Administrator', 'Kassa', 'Cashier', 'Qabulxona', 'Reception', 'receptionist'] },
+    
+    // 4. Shifokor paneli
+    { name: t('nav.doctorPanel'), icon: 'medical_services', path: '/doctor', roles: ['Shifokor', 'Doctor'] },
+    
+    // 4.5. Bosh shifokor paneli
+    { name: 'Bosh shifokor paneli', icon: 'medical_information', path: '/chief-doctor', roles: ['chief_doctor'] },
+    
+    // 4.6. Navbatdagi shifokorlar (Admin uchun)
+    { name: 'Navbatdagi shifokorlar', icon: 'event_available', path: '/on-duty-doctors', roles: ['Admin', 'Administrator'] },
+    
+    // 5. Xonalar - Muolaja
     { name: t('nav.ambulatorRoom'), icon: 'meeting_room', path: '/ambulator', roles: ['Admin', 'Administrator', 'Qabulxona', 'Reception', 'receptionist', 'Shifokor', 'Doctor', 'Hamshira', 'Nurse'] },
     { name: 'Statsionar', icon: 'bed', path: '/inpatient', roles: ['Admin', 'Administrator', 'Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Qabulxona', 'Reception', 'receptionist'] },
-    { name: t('nav.cashier'), icon: 'payments', path: '/cashier', roles: ['Admin', 'Administrator', 'Kassa', 'Cashier', 'Qabulxona', 'Reception', 'receptionist'] },
+    
+    // 6. Hamshira paneli
+    { name: 'Hamshira Paneli', icon: 'medical_services', path: '/nurse', roles: ['Hamshira', 'Nurse'] },
+    
+    // 7. Dorixona
     { name: 'Dorixona', icon: 'medication', path: '/pharmacy', roles: ['Admin', 'Administrator', 'Hamshira', 'Nurse', 'Dorixona', 'Pharmacy', 'Qabulxona', 'Reception', 'receptionist'] },
-    { name: t('nav.staff'), icon: 'badge', path: '/staff', roles: ['Admin', 'Administrator'] },
+    
+    // 8. Laboratoriya
     { name: 'Laborant Dashboard', icon: 'science', path: '/lab', roles: ['Laborant', 'Lab'] },
     { name: 'Laboratoriya', icon: 'biotech', path: '/laboratory', roles: ['Admin', 'Administrator', 'Laborant', 'Lab', 'Shifokor', 'Doctor', 'Qabulxona', 'Reception', 'receptionist'] },
-    { name: 'Lab Dorixonasi', icon: 'vaccines', path: '/lab-pharmacy', roles: ['Laborant', 'Lab'] },
-    { name: t('nav.communications'), icon: 'chat', path: '/communications', roles: ['Admin', 'Administrator', 'Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Qabulxona', 'Reception'] },
-    { name: t('nav.reports'), icon: 'bar_chart', path: '/reports', roles: ['Admin', 'Administrator', 'Manager', 'Menejer'] },
-    { name: 'Maoshlar', icon: 'payments', path: '/payroll', roles: ['Admin', 'Administrator'] },
+    
+    // 9. Tozalovchi
+    { name: 'Tozalovchi Paneli', icon: 'cleaning_services', path: '/sanitar', roles: ['Tozalovchi', 'Cleaner'] },
+    
+    // 10. Massajchi
+    { name: 'Massajchi Paneli', icon: 'spa', path: '/masseur', roles: ['Massajchi', 'Masseur', 'masseur'] },
+    
+    // 11. Logoped
+    { name: 'Logoped Paneli', icon: 'record_voice_over', path: '/speech-therapist', roles: ['Logoped', 'SpeechTherapist', 'speech_therapist'] },
+    
+    // 12. Xodimlar
+    { name: t('nav.staff'), icon: 'badge', path: '/staff', roles: ['Admin', 'Administrator'] },
+    
+    // 13. Vazifalar
     { name: 'Vazifalar', icon: 'task_alt', path: '/tasks', roles: ['Admin', 'Administrator'] },
+    { name: 'Mening Vazifalarim', icon: 'task_alt', path: '/my-tasks', roles: ['Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Laborant', 'Lab', 'Tozalovchi', 'Cleaner', 'Dorixona', 'Pharmacy', 'Qabulxona', 'Reception', 'receptionist', 'Kassa', 'Cashier', 'Massajchi', 'Masseur', 'masseur', 'Logoped', 'SpeechTherapist', 'speech_therapist', 'chief_doctor'] },
+    
+    // 14. Aloqa
+    { name: t('nav.communications'), icon: 'chat', path: '/communications', roles: ['Admin', 'Administrator', 'Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Qabulxona', 'Reception'] },
+    
+    // 13. Hisobotlar
+    { name: t('nav.reports'), icon: 'bar_chart', path: '/reports', roles: ['Admin', 'Administrator', 'Manager', 'Menejer'] },
+    { name: 'Kasir Hisobotlari', icon: 'receipt_long', path: '/cashier-reports', roles: ['Admin', 'Administrator'] },
+    
+    // 14. Xarajatlar
+    { name: 'Xarajatlar', icon: 'receipt_long', path: '/expenses', roles: ['Admin', 'Administrator'] },
+    
+    // 15. Maoshlar (oxirida)
+    { name: 'Maoshlar', icon: 'payments', path: '/payroll', roles: ['Admin', 'Administrator'] },
+    { name: 'Mening Maoshim', icon: 'account_balance_wallet', path: '/my-salary', roles: ['Shifokor', 'Doctor', 'Hamshira', 'Nurse', 'Laborant', 'Lab', 'Tozalovchi', 'Cleaner', 'Massajchi', 'Masseur', 'masseur', 'Logoped', 'SpeechTherapist', 'speech_therapist', 'Dorixona', 'Pharmacy', 'pharmacist', 'chief_doctor', 'Qabulxona', 'Reception', 'receptionist'] },
+    
     // Bemor paneli yashirilgan (hozircha ko'rinmaydigan)
     // { name: 'Bemor Paneli', icon: 'person', path: '/patient-portal', roles: ['Patient', 'Bemor'] },
   ];
@@ -67,13 +110,17 @@ const DashboardLayout = ({ children }) => {
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${sidebarOpen ? 'w-64' : 'w-64 lg:w-20'}
-        bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 
-        flex flex-col transition-all duration-300
-      `}>
+      <aside 
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${sidebarOpen ? 'w-64' : 'w-64 lg:w-20'}
+          bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 
+          flex flex-col transition-all duration-300
+        `}
+        onMouseEnter={() => !sidebarOpen && window.innerWidth >= 1024 && setSidebarOpen(true)}
+        onMouseLeave={() => sidebarOpen && window.innerWidth >= 1024 && setSidebarOpen(false)}
+      >
         <button 
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-6 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full"
@@ -109,7 +156,7 @@ const DashboardLayout = ({ children }) => {
               }`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
-              {sidebarOpen && <span className="text-sm font-medium">{item.name}</span>}
+              {sidebarOpen && <span className="text-sm font-medium whitespace-nowrap">{item.name}</span>}
             </Link>
           ))}
 
@@ -123,7 +170,7 @@ const DashboardLayout = ({ children }) => {
               }`}
             >
               <span className="material-symbols-outlined">settings</span>
-              {sidebarOpen && <span className="text-sm font-medium">{t('nav.settings')}</span>}
+              {sidebarOpen && <span className="text-sm font-medium whitespace-nowrap">{t('nav.settings')}</span>}
             </Link>
           </div>
         </nav>

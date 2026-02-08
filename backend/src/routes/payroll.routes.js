@@ -20,30 +20,43 @@ router.get('/staff-salaries',
     try {
       const salaries = await StaffSalary.find()
         .populate('staff_id', 'first_name last_name role employee_id')
-        .sort({ created_at: -1 })
+        .sort({ createdAt: -1 })
         .lean();
+
+      // Filter out salaries with deleted staff
+      const validSalaries = salaries.filter(s => s.staff_id);
 
       res.json({
         success: true,
-        data: salaries.map(s => ({
+        data: validSalaries.map(s => ({
           id: s._id,
           staff_id: s.staff_id._id,
           staff_name: `${s.staff_id.first_name} ${s.staff_id.last_name}`,
           employee_id: s.staff_id.employee_id,
           role: s.staff_id.role,
-          base_salary: s.base_salary,
-          position_bonus: s.position_bonus,
-          experience_bonus: s.experience_bonus,
-          commission_rate: s.commission_rate,
-          room_cleaning_rate: s.room_cleaning_rate,
-          calculation_type: s.calculation_type,
+          base_salary: s.base_salary || 0,
+          position_bonus: s.position_bonus || 0,
+          experience_bonus: s.experience_bonus || 0,
+          commission_rate: s.commission_rate || 0,
+          inpatient_percentage: s.inpatient_percentage || 0,
+          room_cleaning_rate: s.room_cleaning_rate || 0,
+          calculation_type: s.calculation_type || 'fixed',
           effective_from: s.effective_from,
-          notes: s.notes
+          notes: s.notes,
+          work_start_time: s.work_start_time,
+          work_end_time: s.work_end_time,
+          work_days_per_week: s.work_days_per_week,
+          work_hours_per_month: s.work_hours_per_month
         }))
       });
     } catch (error) {
       console.error('Get staff salaries error:', error);
-      next(error);
+      console.error('Error stack:', error.stack);
+      res.status(500).json({
+        success: false,
+        message: 'Xatolik yuz berdi',
+        error: error.message
+      });
     }
   }
 );
@@ -56,7 +69,17 @@ router.post('/staff-salaries',
   authorize('admin', 'doctor'),
   async (req, res, next) => {
     try {
-      const { staff_id, base_salary, position_bonus, experience_bonus, commission_rate, room_cleaning_rate, notes } = req.body;
+      const { 
+        staff_id, 
+        base_salary, 
+        commission_value, // Frontend'dan keladi
+        position_bonus, 
+        experience_bonus, 
+        commission_rate, 
+        inpatient_percentage, 
+        room_cleaning_rate, 
+        notes 
+      } = req.body;
 
       // Check if salary already exists
       const existing = await StaffSalary.findOne({ staff_id });
@@ -77,6 +100,16 @@ router.post('/staff-salaries',
         });
       }
 
+      // Validate inpatient_percentage for chief doctor
+      if (staff.role === 'chief_doctor' && inpatient_percentage) {
+        if (inpatient_percentage > 50) {
+          return res.status(400).json({
+            success: false,
+            message: 'Bosh shifokor uchun maksimal 50% statsionar foizi belgilash mumkin'
+          });
+        }
+      }
+
       let calculation_type = 'fixed';
       if (staff.role === 'sanitar') {
         calculation_type = 'per_room';
@@ -84,12 +117,16 @@ router.post('/staff-salaries',
         calculation_type = 'commission';
       }
 
+      // commission_value yoki base_salary ishlatish
+      const salaryAmount = commission_value || base_salary || 0;
+
       const salary = await StaffSalary.create({
         staff_id,
-        base_salary: base_salary || 0,
+        base_salary: salaryAmount,
         position_bonus: position_bonus || 0,
         experience_bonus: experience_bonus || 0,
         commission_rate: commission_rate || 0,
+        inpatient_percentage: inpatient_percentage || 0,
         room_cleaning_rate: room_cleaning_rate || 0,
         calculation_type,
         notes
@@ -120,27 +157,58 @@ router.put('/staff-salaries/:id',
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { base_salary, position_bonus, experience_bonus, commission_rate, room_cleaning_rate, notes } = req.body;
+      const { 
+        base_salary, 
+        commission_value, // Frontend'dan keladi
+        position_bonus, 
+        experience_bonus, 
+        commission_rate, 
+        inpatient_percentage, 
+        room_cleaning_rate, 
+        notes 
+      } = req.body;
 
-      const salary = await StaffSalary.findByIdAndUpdate(
-        id,
-        {
-          base_salary,
-          position_bonus,
-          experience_bonus,
-          commission_rate,
-          room_cleaning_rate,
-          notes
-        },
-        { new: true }
-      ).populate('staff_id', 'first_name last_name role employee_id');
-
-      if (!salary) {
+      // Get salary to check staff role
+      const existingSalary = await StaffSalary.findById(id).populate('staff_id');
+      if (!existingSalary) {
         return res.status(404).json({
           success: false,
           message: 'Maosh topilmadi'
         });
       }
+
+      // Validate inpatient_percentage for chief doctor
+      if (existingSalary.staff_id.role === 'chief_doctor' && inpatient_percentage) {
+        if (inpatient_percentage > 50) {
+          return res.status(400).json({
+            success: false,
+            message: 'Bosh shifokor uchun maksimal 50% statsionar foizi belgilash mumkin'
+          });
+        }
+      }
+
+      // commission_value yoki base_salary ishlatish
+      const salaryAmount = commission_value || base_salary;
+
+      const updateData = {
+        position_bonus,
+        experience_bonus,
+        commission_rate,
+        inpatient_percentage,
+        room_cleaning_rate,
+        notes
+      };
+
+      // Agar salary amount berilgan bo'lsa, yangilash
+      if (salaryAmount !== undefined) {
+        updateData.base_salary = salaryAmount;
+      }
+
+      const salary = await StaffSalary.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true }
+      ).populate('staff_id', 'first_name last_name role employee_id');
 
       res.json({
         success: true,
@@ -305,7 +373,7 @@ router.get('/penalties',
   async (req, res, next) => {
     try {
       const penalties = await Penalty.find()
-        .populate('staff_id', 'first_name last_name employee_id')
+        .populate('staff_id', 'first_name last_name employee_id role')
         .populate('approved_by', 'first_name last_name')
         .sort({ created_at: -1 })
         .lean();
@@ -409,6 +477,79 @@ router.post('/penalties',
 );
 
 /**
+ * Approve penalty
+ * POST /api/v1/payroll/penalties/:id/approve
+ */
+router.post('/penalties/:id/approve',
+  authenticate,
+  authorize('admin'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      const penalty = await Penalty.findByIdAndUpdate(
+        id,
+        {
+          status: 'approved',
+          approved_by: req.user.id
+        },
+        { new: true }
+      )
+        .populate('staff_id', 'first_name last_name employee_id')
+        .populate('approved_by', 'first_name last_name');
+
+      if (!penalty) {
+        return res.status(404).json({
+          success: false,
+          message: 'Jarima topilmadi'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Jarima tasdiqlandi',
+        data: penalty
+      });
+    } catch (error) {
+      console.error('Approve penalty error:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * Reject penalty (Delete it completely)
+ * POST /api/v1/payroll/penalties/:id/reject
+ */
+router.post('/penalties/:id/reject',
+  authenticate,
+  authorize('admin'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      const penalty = await Penalty.findByIdAndDelete(id);
+
+      if (!penalty) {
+        return res.status(404).json({
+          success: false,
+          message: 'Jarima topilmadi'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Jarima bekor qilindi va o\'chirildi',
+        data: penalty
+      });
+    } catch (error) {
+      console.error('Reject penalty error:', error);
+      next(error);
+    }
+  }
+);
+
+/**
  * Get monthly payroll
  */
 router.get('/monthly-payroll',
@@ -506,6 +647,7 @@ function getRoleNameUz(role) {
   const roleMap = {
     'admin': 'Administrator',
     'doctor': 'Shifokor',
+    'chief_doctor': 'Bosh shifokor',
     'nurse': 'Hamshira',
     'laborant': 'Laborant',
     'pharmacist': 'Dorixona',
@@ -557,6 +699,35 @@ router.post('/calculate-monthly',
         switch (staff.role) {
           case 'admin':
             // Admin: Fixed salary only
+            break;
+
+          case 'chief_doctor':
+            // Chief Doctor: Percentage from inpatient revenue
+            // Statsionardan kelgan pulning foizi
+            const Admission = mongoose.model('Admission');
+            const inpatientRevenue = await Invoice.aggregate([
+              {
+                $lookup: {
+                  from: 'admissions',
+                  localField: 'patient_id',
+                  foreignField: 'patient_id',
+                  as: 'admission'
+                }
+              },
+              {
+                $match: {
+                  created_at: { $gte: startDate, $lte: endDate },
+                  'admission.0': { $exists: true } // Faqat statsionar bemorlar
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: '$total_amount' }
+                }
+              }
+            ]);
+            serviceCommission = (inpatientRevenue[0]?.total || 0) * ((salary.inpatient_percentage || 0) / 100);
             break;
 
           case 'doctor':
@@ -696,8 +867,30 @@ router.post('/calculate-monthly',
           }
         ]);
 
-        const totalBonuses = bonuses[0]?.total || 0;
         const totalPenalties = penalties[0]?.total || 0;
+        let totalBonuses = bonuses[0]?.total || 0;
+
+        // AUTO BONUS: Check if automatic bonus is enabled and staff has no penalties
+        const Settings = mongoose.model('Settings');
+        const bonusEnabled = await Settings.findOne({ key: 'bonus_enabled' });
+        const bonusAmount = await Settings.findOne({ key: 'bonus_amount' });
+
+        if (bonusEnabled?.value && bonusAmount?.value > 0 && totalPenalties === 0) {
+          // Create automatic bonus for staff without penalties
+          const autoBonus = await Bonus.create({
+            staff_id: staff._id,
+            amount: bonusAmount.value,
+            reason: 'Oylik avtomatik bonus (jarimasi yo\'q)',
+            bonus_type: 'other',
+            month: parseInt(month),
+            year: parseInt(year),
+            approved_by: req.user.id,
+            status: 'approved'
+          });
+          
+          // Add to total bonuses
+          totalBonuses += bonusAmount.value;
+        }
 
         const totalSalary = 
           salary.base_salary +
@@ -869,6 +1062,39 @@ router.get('/staff/:staffId/details',
       });
     } catch (error) {
       console.error('Get staff details error:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * Get my work schedule
+ * GET /api/v1/payroll/my-work-schedule
+ */
+router.get('/my-work-schedule',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const staffSalary = await StaffSalary.findOne({ staff_id: req.user.id });
+      
+      if (!staffSalary) {
+        return res.json({
+          success: true,
+          data: null
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          work_start_time: staffSalary.work_start_time,
+          work_end_time: staffSalary.work_end_time,
+          work_days_per_week: staffSalary.work_days_per_week,
+          work_hours_per_month: staffSalary.work_hours_per_month
+        }
+      });
+    } catch (error) {
+      console.error('Get work schedule error:', error);
       next(error);
     }
   }

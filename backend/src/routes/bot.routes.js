@@ -623,4 +623,63 @@ router.get('/messages/patient/:patientId', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/v1/bot/tasks/staff/:staffId
+ * Get tasks for staff member (for bot)
+ */
+router.get('/tasks/staff/:staffId', async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    
+    console.log('=== BOT TASKS LOOKUP ===');
+    console.log('Staff ID:', staffId);
+    
+    // Import Task model
+    const Task = (await import('../models/Task.js')).default;
+    
+    // Find tasks assigned to this staff member
+    const tasks = await Task.find({
+      assigned_to: staffId,
+      status: { $in: ['pending', 'in_progress', 'completed', 'verified'] }
+    })
+      .populate('created_by', 'first_name last_name')
+      .sort({ created_at: -1 })
+      .limit(50)
+      .lean();
+    
+    console.log(`✅ Found ${tasks.length} tasks`);
+    
+    // Format tasks for bot
+    const formattedTasks = tasks.map(task => ({
+      id: task._id,
+      title: task.title,
+      description: task.description,
+      task_type: task.task_type,
+      priority: task.priority,
+      status: task.status,
+      due_date: task.due_date,
+      location_details: task.location_details,
+      started_at: task.started_at,
+      completed_at: task.completed_at,
+      verified_at: task.verified_at,
+      completion_notes: task.completion_notes,
+      rejection_reason: task.rejection_reason,
+      creator_name: task.created_by ? `${task.created_by.first_name} ${task.created_by.last_name}` : 'N/A',
+      created_at: task.created_at
+    }));
+    
+    res.json({
+      success: true,
+      data: formattedTasks
+    });
+  } catch (error) {
+    console.error('Error fetching staff tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server xatosi',
+      error: error.message
+    });
+  }
+});
+
 export default router;

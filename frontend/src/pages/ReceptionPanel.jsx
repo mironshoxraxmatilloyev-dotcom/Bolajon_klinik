@@ -104,6 +104,22 @@ export default function ReceptionPanel() {
             <span className="material-symbols-outlined text-5xl text-purple-600">biotech</span>
             <span className="font-semibold text-gray-900 dark:text-white">Laboratoriya</span>
           </a>
+
+          <a
+            href="/my-tasks"
+            className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-lg transition-all border-2 border-orange-200 dark:border-orange-800"
+          >
+            <span className="material-symbols-outlined text-5xl text-orange-600">task</span>
+            <span className="font-semibold text-gray-900 dark:text-white">Mening Vazifalarim</span>
+          </a>
+
+          <a
+            href="/my-salary"
+            className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl hover:shadow-lg transition-all border-2 border-teal-200 dark:border-teal-800"
+          >
+            <span className="material-symbols-outlined text-5xl text-teal-600">account_balance_wallet</span>
+            <span className="font-semibold text-gray-900 dark:text-white">Mening Maoshim</span>
+          </a>
         </div>
       </div>
     </div>

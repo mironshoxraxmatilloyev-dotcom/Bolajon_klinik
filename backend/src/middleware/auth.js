@@ -99,9 +99,10 @@ export const authorize = (...allowedRoles) => {
       'Reception': ['Reception', 'Qabulxona', 'Registrator', 'receptionist'],
       'Qabulxona': ['Reception', 'Qabulxona', 'Registrator', 'receptionist'],
       'Registrator': ['Reception', 'Qabulxona', 'Registrator', 'receptionist'],
-      'cashier': ['Cashier', 'Kassa', 'cashier'],
-      'Cashier': ['Cashier', 'Kassa', 'cashier'],
-      'Kassa': ['Cashier', 'Kassa', 'cashier'],
+      'cashier': ['Cashier', 'Kassa', 'cashier', 'Kassir'],
+      'Cashier': ['Cashier', 'Kassa', 'cashier', 'Kassir'],
+      'Kassa': ['Cashier', 'Kassa', 'cashier', 'Kassir'],
+      'Kassir': ['Cashier', 'Kassa', 'cashier', 'Kassir'],
       'laborant': ['Lab', 'Laborant', 'laborant'],
       'Lab': ['Lab', 'Laborant', 'laborant'],
       'Laborant': ['Lab', 'Laborant', 'laborant'],
@@ -111,13 +112,24 @@ export const authorize = (...allowedRoles) => {
       'pharmacist': ['Pharmacy', 'Dorixona', 'pharmacist'],
       'Pharmacy': ['Pharmacy', 'Dorixona', 'pharmacist'],
       'Dorixona': ['Pharmacy', 'Dorixona', 'pharmacist'],
+      'masseur': ['Masseur', 'Massajchi', 'masseur'],
+      'Masseur': ['Masseur', 'Massajchi', 'masseur'],
+      'Massajchi': ['Masseur', 'Massajchi', 'masseur'],
+      'speech_therapist': ['SpeechTherapist', 'Logoped', 'speech_therapist'],
+      'SpeechTherapist': ['SpeechTherapist', 'Logoped', 'speech_therapist'],
+      'Logoped': ['SpeechTherapist', 'Logoped', 'speech_therapist'],
       'patient': ['Bemor', 'Patient', 'patient'],
       'Bemor': ['Bemor', 'Patient', 'patient'],
       'Patient': ['Bemor', 'Patient', 'patient']
     };
     
     // Get user's actual role
-    const userRole = req.user.role_name;
+    const userRole = req.user.role_name || req.user.role;
+    
+    console.log('=== AUTHORIZE CHECK ===');
+    console.log('User role:', userRole);
+    console.log('Allowed roles:', allowedRoles);
+    console.log('User object:', req.user);
     
     // Check if user's role matches any of the allowed roles (considering aliases)
     const hasPermission = allowedRoles.some(allowedRole => {
@@ -127,6 +139,8 @@ export const authorize = (...allowedRoles) => {
       // Check if any user alias matches any allowed alias
       return userAliases.some(userAlias => allowedAliases.includes(userAlias));
     });
+    
+    console.log('Has permission:', hasPermission);
     
     if (!hasPermission) {
       return next(new AppError('Insufficient permissions', 403));
