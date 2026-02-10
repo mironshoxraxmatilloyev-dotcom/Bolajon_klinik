@@ -4,6 +4,7 @@ import labReagentService from '../services/labReagentService';
 import Modal from '../components/Modal';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 
 const LabPharmacy = () => {
   const [loading, setLoading] = useState(true);
@@ -535,8 +536,7 @@ const LabPharmacy = () => {
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Yaroqlilik muddati <span className="text-red-500">*</span>
             </label>
-            <input
-              type="date"
+            <DateInput
               value={reagentForm.expiry_date}
               onChange={(e) => setReagentForm({ ...reagentForm, expiry_date: e.target.value })}
               className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"

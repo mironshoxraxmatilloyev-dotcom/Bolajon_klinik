@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import laboratoryService from '../services/laboratoryService';
 import labReagentService from '../services/labReagentService';
 import toast, { Toaster } from 'react-hot-toast';
+import DateInput from '../components/DateInput';
 
 export default function LaborantPanel() {
   const { user } = useAuth();
@@ -726,8 +727,7 @@ export default function LaborantPanel() {
             <div className="space-y-4">
               {/* Filters */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <input
-                  type="date"
+                <DateInput
                   value={filters.date}
                   onChange={(e) => setFilters({ ...filters, date: e.target.value })}
                   className="px-4 py-2 border rounded-lg"

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { publicService } from '../services/publicApi';
+import PhoneInput from './PhoneInput';
+import DateInput from './DateInput';
 
 const AppointmentModal = ({ isOpen, onClose, selectedDoctor = null }) => {
   const [formData, setFormData] = useState({
@@ -83,8 +85,7 @@ const AppointmentModal = ({ isOpen, onClose, selectedDoctor = null }) => {
 
             <div>
               <label className="block text-sm font-semibold mb-2">Telefon *</label>
-              <input
-                type="tel"
+              <PhoneInput
                 required
                 value={formData.patient_phone}
                 onChange={(e) => setFormData({ ...formData, patient_phone: e.target.value })}
@@ -106,8 +107,7 @@ const AppointmentModal = ({ isOpen, onClose, selectedDoctor = null }) => {
 
             <div>
               <label className="block text-sm font-semibold mb-2">Sana *</label>
-              <input
-                type="date"
+              <DateInput
                 required
                 value={formData.preferred_date}
                 onChange={(e) => setFormData({ ...formData, preferred_date: e.target.value })}

@@ -298,6 +298,40 @@ body {
     display: flex;
   }
 
+  /* Sana inputi uchun dd/mm/yyyy formati */
+  input[type="date"].date-dd-mm-yyyy::-webkit-datetime-edit-fields-wrapper {
+    display: flex;
+  }
+  
+  input[type="date"].date-dd-mm-yyyy::-webkit-datetime-edit-day-field {
+    order: 1;
+  }
+  
+  input[type="date"].date-dd-mm-yyyy::-webkit-datetime-edit-text:nth-of-type(1) {
+    order: 2;
+  }
+  
+  input[type="date"].date-dd-mm-yyyy::-webkit-datetime-edit-month-field {
+    order: 3;
+  }
+  
+  input[type="date"].date-dd-mm-yyyy::-webkit-datetime-edit-text:nth-of-type(2) {
+    order: 4;
+  }
+  
+  input[type="date"].date-dd-mm-yyyy::-webkit-datetime-edit-year-field {
+    order: 5;
+  }
+  
+  input[type="date"].date-dd-mm-yyyy::-webkit-calendar-picker-indicator {
+    order: 6;
+    filter: invert(0.5);
+  }
+
+  .dark input[type="date"].date-dd-mm-yyyy::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+  }
+
 
 /* Nurse Call Bell Animation */
 @keyframes ring-bell {

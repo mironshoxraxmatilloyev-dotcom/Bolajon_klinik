@@ -4,6 +4,7 @@ import cashierReportService from '../services/cashierReportService';
 import toast, { Toaster } from 'react-hot-toast';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
+import DateInput from '../components/DateInput';
 
 export default function Reports() {
   const [loading, setLoading] = useState(true);
@@ -144,8 +145,7 @@ export default function Reports() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Dan:</label>
-            <input
-              type="date"
+            <DateInput
               value={dateRange.from}
               onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
               className="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
@@ -153,8 +153,7 @@ export default function Reports() {
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Gacha:</label>
-            <input
-              type="date"
+            <DateInput
               value={dateRange.to}
               onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
               className="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"

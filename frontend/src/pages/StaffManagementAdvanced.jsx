@@ -4,6 +4,8 @@ import staffService from '../services/staffService';
 import Modal from '../components/Modal';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
+import PhoneInput from '../components/PhoneInput';
+import DateInput from '../components/DateInput';
 
 const StaffManagementAdvanced = () => {
   const { t } = useTranslation();
@@ -627,8 +629,7 @@ const StaffManagementAdvanced = () => {
                     Telefon <span className="text-red-500">*</span>
                   </span>
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={staffForm.phone}
                   onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
                   className="w-full px-3 py-2.5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-sm"
@@ -701,8 +702,7 @@ const StaffManagementAdvanced = () => {
                     Ishga qabul qilingan sana <span className="text-red-500">*</span>
                   </span>
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={staffForm.hire_date}
                   onChange={(e) => setStaffForm({ ...staffForm, hire_date: e.target.value })}
                   className="w-full px-3 py-2.5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-sm"

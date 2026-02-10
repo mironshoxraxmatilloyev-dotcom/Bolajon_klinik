@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import patientPortalService from '../services/patientPortalService';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import PhoneInput from '../components/PhoneInput';
 
 const PatientSettings = () => {
   const { i18n } = useTranslation();
@@ -556,8 +557,7 @@ const PatientSettings = () => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Telefon
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={contactForm.phone}
                   onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"

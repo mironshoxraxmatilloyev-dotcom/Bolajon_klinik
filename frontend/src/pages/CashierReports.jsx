@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import cashierReportService from '../services/cashierReportService';
 import toast, { Toaster } from 'react-hot-toast';
+import DateInput from '../components/DateInput';
 
 export default function CashierReports() {
   const [loading, setLoading] = useState(true);
@@ -117,8 +118,7 @@ export default function CashierReports() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Dan:</label>
-            <input
-              type="date"
+            <DateInput
               value={dateRange.start_date}
               onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
               className="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
@@ -126,8 +126,7 @@ export default function CashierReports() {
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Gacha:</label>
-            <input
-              type="date"
+            <DateInput
               value={dateRange.end_date}
               onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
               className="px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"

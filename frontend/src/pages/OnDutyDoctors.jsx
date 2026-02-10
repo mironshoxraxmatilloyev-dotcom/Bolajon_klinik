@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
+import DateInput from '../components/DateInput';
 
 export default function OnDutyDoctors() {
   const { user } = useAuth();
@@ -188,8 +189,7 @@ export default function OnDutyDoctors() {
         <div className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-semibold mb-2">Boshlanish sanasi</label>
-            <input
-              type="date"
+            <DateInput
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="px-4 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700"
@@ -197,8 +197,7 @@ export default function OnDutyDoctors() {
           </div>
           <div>
             <label className="block text-sm font-semibold mb-2">Tugash sanasi</label>
-            <input
-              type="date"
+            <DateInput
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="px-4 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700"
@@ -311,8 +310,7 @@ export default function OnDutyDoctors() {
 
               <div>
                 <label className="block text-sm font-semibold mb-2">Sana *</label>
-                <input
-                  type="date"
+                <DateInput
                   value={dutyForm.shift_date}
                   onChange={(e) => setDutyForm({ ...dutyForm, shift_date: e.target.value })}
                   className="w-full px-4 py-3 border rounded-lg dark:bg-gray-900 dark:border-gray-700"

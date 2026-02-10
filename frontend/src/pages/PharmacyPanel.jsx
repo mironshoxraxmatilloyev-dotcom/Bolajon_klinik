@@ -4,6 +4,8 @@ import pharmacyService from '../services/pharmacyService';
 import patientService from '../services/patientService';
 import toast, { Toaster } from 'react-hot-toast';
 import MySalary from './MySalary';
+import PhoneInput from '../components/PhoneInput';
+import DateInput from '../components/DateInput';
 
 export default function PharmacyPanel() {
   const { user } = useAuth();
@@ -757,8 +759,7 @@ export default function PharmacyPanel() {
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-1">Yaroqlilik muddati *</label>
-                <input 
-                  type="date"
+                <DateInput 
                   value={newMedicine.expiry_date}
                   onChange={(e) => setNewMedicine({...newMedicine, expiry_date: e.target.value})}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -936,8 +937,7 @@ export default function PharmacyPanel() {
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-1">Telefon</label>
-                <input 
-                  type="tel"
+                <PhoneInput 
                   value={newSupplier.phone}
                   onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})}
                   className="w-full px-3 py-2 border rounded-lg"
@@ -1093,8 +1093,7 @@ export default function PharmacyPanel() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold mb-1">Yaroqlilik muddati *</label>
-                <input 
-                  type="date"
+                <DateInput 
                   value={acceptData.expiry_date}
                   onChange={(e) => setAcceptData({...acceptData, expiry_date: e.target.value})}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"

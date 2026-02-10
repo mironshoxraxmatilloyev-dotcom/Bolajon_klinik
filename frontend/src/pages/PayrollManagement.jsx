@@ -14,6 +14,7 @@ import {
   Legend,
   ArcElement
 } from 'chart.js';
+import DateInput from '../components/DateInput';
 
 ChartJS.register(
   CategoryScale,
@@ -1718,8 +1719,7 @@ function SalaryModal({ staff, editingSalary, onClose, onSuccess }) {
 
           <div>
             <label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-200">Amal qilish sanasi *</label>
-            <input
-              type="date"
+            <DateInput
               value={effectiveFrom}
               onChange={(e) => setEffectiveFrom(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
@@ -1860,8 +1860,7 @@ function BonusModal({ staff, onClose, onSuccess }) {
 
           <div>
             <label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-200">Sana *</label>
-            <input
-              type="date"
+            <DateInput
               value={bonusDate}
               onChange={(e) => setBonusDate(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
@@ -2002,8 +2001,7 @@ function PenaltyModal({ staff, onClose, onSuccess }) {
 
           <div>
             <label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-200">Sana *</label>
-            <input
-              type="date"
+            <DateInput
               value={penaltyDate}
               onChange={(e) => setPenaltyDate(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all"

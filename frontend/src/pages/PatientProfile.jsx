@@ -8,6 +8,7 @@ import treatmentService from '../services/treatmentService';
 import Modal from '../components/Modal';
 import AlertModal from '../components/AlertModal';
 import PatientQRModal from '../components/PatientQRModal';
+import DateInput from '../components/DateInput';
 
 const PatientProfile = () => {
   const { id } = useParams();
@@ -351,8 +352,7 @@ const PatientProfile = () => {
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">Kunlik muolaja jadvali</h3>
-                <input
-                  type="date"
+                <DateInput
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"

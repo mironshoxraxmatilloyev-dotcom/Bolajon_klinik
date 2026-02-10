@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { patientService } from '../services/patientService';
+import PhoneInput from './PhoneInput';
+import DateInput from './DateInput';
 
 const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
   const { t } = useTranslation();
@@ -214,8 +216,7 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 {t('patients.phone')} <span className="text-red-500">*</span>
               </label>
-              <input
-                type="tel"
+              <PhoneInput
                 required
                 value={formData.phone}
                 onChange={handlePhoneChange}
@@ -235,8 +236,8 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   {t('patients.birthDate')} <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                {/* DD/MM/YYYY formatida sana inputi */}
+                <DateInput
                   required
                   value={formData.birth_date}
                   onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}

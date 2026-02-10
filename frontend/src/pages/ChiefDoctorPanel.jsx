@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
+import DateInput from '../components/DateInput';
 
 export default function ChiefDoctorPanel() {
   const { user } = useAuth();
@@ -283,8 +284,7 @@ export default function ChiefDoctorPanel() {
               <div className="flex flex-wrap gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-2">Sana</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="px-4 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700"
@@ -513,8 +513,7 @@ export default function ChiefDoctorPanel() {
 
               <div>
                 <label className="block text-sm font-semibold mb-2">Sana *</label>
-                <input
-                  type="date"
+                <DateInput
                   value={dutyForm.shift_date}
                   onChange={(e) => setDutyForm({ ...dutyForm, shift_date: e.target.value })}
                   className="w-full px-4 py-3 border rounded-lg dark:bg-gray-900 dark:border-gray-700"

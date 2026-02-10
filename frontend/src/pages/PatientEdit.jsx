@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { patientService } from '../services/patientService';
 import PatientQRModal from '../components/PatientQRModal';
+import PhoneInput from '../components/PhoneInput';
+import DateInput from '../components/DateInput';
 
 const PatientEdit = () => {
   const { id } = useParams();
@@ -235,8 +237,7 @@ const PatientEdit = () => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Telefon <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={formData.phone}
                   onChange={handlePhoneChange}
                   className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border ${
@@ -253,8 +254,7 @@ const PatientEdit = () => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Tug'ilgan sana <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={formData.birth_date}
                   onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
                   className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border ${
