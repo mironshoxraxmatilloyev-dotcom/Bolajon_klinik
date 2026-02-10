@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { patientService } from '../services/patientService';
 import PhoneInput from './PhoneInput';
-import DateInput from './DateInput';
+import YearInput from './YearInput';
 
 const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
   const { t } = useTranslation();
@@ -230,14 +230,14 @@ const AddPatientModal = ({ isOpen, onClose, onSuccess }) => {
               )}
             </div>
 
-            {/* Tug'ilgan sana va Jinsi */}
+            {/* Tug'ilgan yil va Jinsi */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {t('patients.birthDate')} <span className="text-red-500">*</span>
+                  Tug'ilgan yili <span className="text-red-500">*</span>
                 </label>
-                {/* DD/MM/YYYY formatida sana inputi */}
-                <DateInput
+                {/* Faqat yil kiritish */}
+                <YearInput
                   required
                   value={formData.birth_date}
                   onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}

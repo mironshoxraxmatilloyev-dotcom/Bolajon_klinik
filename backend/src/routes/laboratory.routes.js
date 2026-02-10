@@ -352,8 +352,9 @@ router.get('/orders/:id/result', authenticate, async (req, res, next) => {
       });
     }
 
-    // Calculate patient age if date_of_birth exists
+    // Calculate patient age and birth year if date_of_birth exists
     let patientAge = null;
+    let patientBirthYear = null;
     if (order.patient_id?.date_of_birth) {
       const birthDate = new Date(order.patient_id.date_of_birth);
       const today = new Date();
@@ -363,6 +364,7 @@ router.get('/orders/:id/result', authenticate, async (req, res, next) => {
         age--;
       }
       patientAge = age;
+      patientBirthYear = birthDate.getFullYear();
     }
     
     res.json({
@@ -375,6 +377,8 @@ router.get('/orders/:id/result', authenticate, async (req, res, next) => {
         patient_name: order.patient_id ? `${order.patient_id.first_name} ${order.patient_id.last_name}` : 'Noma\'lum',
         patient_number: order.patient_id?.patient_number,
         patient_age: patientAge,
+        patient_birth_year: patientBirthYear,
+        patient_address: order.patient_id?.address || null,
         doctor_name: order.doctor_id ? `${order.doctor_id.first_name} ${order.doctor_id.last_name}` : null,
         laborant_name: order.laborant_id ? `${order.laborant_id.first_name} ${order.laborant_id.last_name}` : null,
         test_results: order.results || [],

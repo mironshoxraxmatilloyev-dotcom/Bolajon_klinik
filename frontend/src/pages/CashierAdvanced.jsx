@@ -10,7 +10,7 @@ import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
 import QRCode from 'qrcode';
 import PhoneInput from '../components/PhoneInput';
-import DateInput from '../components/DateInput';
+import YearInput from '../components/YearInput';
 
 const CashierAdvanced = () => {
   const { t } = useTranslation();
@@ -1633,9 +1633,9 @@ const CashierAdvanced = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Tug'ilgan sana
+                Tug'ilgan yili
               </label>
-              <DateInput
+              <YearInput
                 value={patientForm.date_of_birth}
                 onChange={(e) => setPatientForm({ ...patientForm, date_of_birth: e.target.value })}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"

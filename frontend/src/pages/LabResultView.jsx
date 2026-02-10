@@ -189,7 +189,7 @@ export default function LabResultView() {
               <div>
                 <span className="text-gray-600">Ёш:</span>
                 <span className="ml-2 font-semibold border-b border-gray-400 inline-block min-w-[120px]">
-                  {result.patient_age || '—'}
+                  {result.patient_age ? `${result.patient_age} ёш` : '—'}
                 </span>
               </div>
             </div>
@@ -216,7 +216,7 @@ export default function LabResultView() {
               <div className="mb-4">
                 <span className="text-gray-600 text-sm">Туғилган йили:</span>
                 <span className="ml-2 font-semibold border-b border-gray-400 inline-block min-w-[200px]">
-                  {result.patient_age ? new Date().getFullYear() - result.patient_age : '—'}
+                  {result.patient_birth_year || '—'}
                 </span>
               </div>
               <div className="mb-8">
