@@ -169,7 +169,6 @@ app.use(`/api/${API_VERSION}/bot`, botRoutes);
 app.use(`/api/${API_VERSION}/ai-chatbot`, aiChatbotRoutes);
 app.use(`/api/${API_VERSION}/appointments`, appointmentRoutes);
 app.use(`/api/${API_VERSION}/expenses`, expenseRoutes);
-app.use(`/api/${API_VERSION}/reports`, reportRoutes);
 app.use(`/api/${API_VERSION}/attendance`, attendanceRoutes);
 app.use(`/api/${API_VERSION}/lab-reagents`, labReagentRoutes);
 app.use(`/api/${API_VERSION}/chief-doctor`, chiefDoctorRoutes);

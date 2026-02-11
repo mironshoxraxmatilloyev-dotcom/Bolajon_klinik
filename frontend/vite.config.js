@@ -35,6 +35,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,woff,woff2}'],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -161,10 +162,13 @@ export default defineConfig({
       'react-dom', 
       'react-router-dom',
       'react-hot-toast',
-      'axios'
+      'axios',
+      'react-is',
+      'chart.js',
+      'react-chartjs-2'
     ],
     // Force pre-bundling
-    force: false
+    force: true
   },
   // Resolve aliases - tezroq import
   resolve: {

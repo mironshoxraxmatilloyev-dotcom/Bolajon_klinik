@@ -58,7 +58,7 @@ const PageLoader = () => (
   </div>
 );
 
-function App() {
+function AppContent() {
   const { i18n } = useTranslation();
 
   useEffect(() => {
@@ -90,13 +90,12 @@ function App() {
   }, [i18n]);
 
   return (
-    <AuthProvider>
-      <Router>
-        <Toaster position="top-right" />
-        <PWAInstallPrompt />
-        <RoleBasedRedirect>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+    <Router>
+      <Toaster position="top-right" />
+      <PWAInstallPrompt />
+      <RoleBasedRedirect>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
@@ -158,6 +157,13 @@ function App() {
           </Suspense>
         </RoleBasedRedirect>
       </Router>
+    );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }
