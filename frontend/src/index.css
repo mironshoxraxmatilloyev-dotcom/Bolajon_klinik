@@ -58,6 +58,16 @@
 }
 
 @layer components {
+  /* Responsive table wrapper */
+  .table-responsive {
+    @apply overflow-x-auto;
+    max-width: 100%;
+  }
+
+  .table-responsive table {
+    @apply min-w-max;
+  }
+
   /* Koykalar scroll container */
   .beds-scroll-container::-webkit-scrollbar {
     width: 6px;

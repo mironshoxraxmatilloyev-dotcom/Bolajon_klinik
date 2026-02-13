@@ -112,11 +112,12 @@ const DashboardLayout = ({ children }) => {
       {/* Sidebar */}
       <aside 
         className={`
-          fixed lg:static inset-y-0 left-0 z-50
+          fixed lg:relative inset-y-0 left-0 z-50
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${sidebarOpen ? 'w-64' : 'w-64 lg:w-20'}
+          w-64 lg:w-20
+          ${sidebarOpen ? 'lg:w-64' : 'lg:w-20'}
           bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 
-          flex flex-col transition-all duration-300
+          flex flex-col transition-all duration-300 flex-shrink-0
         `}
         onMouseEnter={() => !sidebarOpen && window.innerWidth >= 1024 && setSidebarOpen(true)}
         onMouseLeave={() => sidebarOpen && window.innerWidth >= 1024 && setSidebarOpen(false)}

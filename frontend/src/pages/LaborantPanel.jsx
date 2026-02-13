@@ -240,7 +240,13 @@ export default function LaborantPanel() {
       const response = await laboratoryService.updateOrderStatus(orderId, 'sample_collected');
       if (response.success) {
         toast.success('Namuna olindi');
-        loadData();
+        await loadData();
+        
+        // Namuna olingandan keyin darhol natija kiritish modalini ochish
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+          handleOpenResultModal(order);
+        }
       }
     } catch (error) {
       toast.error('Xatolik yuz berdi');

@@ -76,7 +76,7 @@ const Patients = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -88,7 +88,7 @@ const Patients = () => {
         {!isDoctor && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:opacity-90 flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:opacity-90 flex items-center justify-center gap-2 flex-shrink-0"
           >
             <span className="material-symbols-outlined">add</span>
             <span>{t('dashboard.newPatient')}</span>
@@ -137,31 +137,31 @@ const Patients = () => {
           <>
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-max">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       {t('patients.fullName')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       {t('patients.phone')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       Telegram Kod
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       {t('patients.birthDate')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       {t('patients.balance')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       {t('patients.status')}
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 dark:text-gray-400 uppercase whitespace-nowrap">
                       {t('patients.actions')}
                     </th>
                   </tr>

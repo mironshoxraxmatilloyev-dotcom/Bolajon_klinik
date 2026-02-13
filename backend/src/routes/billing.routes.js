@@ -8,6 +8,7 @@ import ServiceCategory from '../models/ServiceCategory.js';
 import Transaction from '../models/Transaction.js';
 import Patient from '../models/Patient.js';
 import Staff from '../models/Staff.js';
+import LabTest from '../models/LabTest.js';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -260,9 +261,13 @@ router.post('/invoices',
         });
       }
 
-      // Generate invoice number
+      // Generate invoice number - qisqa format
       const invoiceCount = await Invoice.countDocuments();
-      const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+      const today = new Date();
+      const year = today.getFullYear().toString().slice(-2); // Oxirgi 2 raqam
+      const month = (today.getMonth() + 1).toString().padStart(2, '0');
+      const day = today.getDate().toString().padStart(2, '0');
+      const invoiceNumber = `INV-${year}${month}${day}-${(invoiceCount + 1).toString().padStart(4, '0')}`;
 
       // Calculate total amount
       let totalAmount = 0;
@@ -278,12 +283,33 @@ router.post('/invoices',
       for (const item of items) {
         console.log(`Searching for service with ID: ${item.service_id}`);
         
-        const service = await Service.findOne({ 
+        // Avval Service modelida qidirish
+        let service = await Service.findOne({ 
           _id: item.service_id, 
           is_active: true 
         });
 
-        console.log(`Service found:`, service ? `${service.name} (${service._id})` : 'NOT FOUND');
+        // Agar Service'da topilmasa, LabTest'da qidirish
+        if (!service) {
+          const labTest = await LabTest.findOne({
+            _id: item.service_id,
+            is_active: true
+          });
+          
+          if (labTest) {
+            // Lab testni service formatiga o'tkazish
+            service = {
+              _id: labTest._id,
+              name: labTest.name,
+              price: labTest.price,
+              base_price: labTest.price,
+              category: 'Laboratoriya'
+            };
+            console.log(`Lab test found: ${service.name} (${service._id})`);
+          }
+        } else {
+          console.log(`Service found: ${service.name} (${service._id})`);
+        }
 
         if (!service) {
           await session.abortTransaction();
@@ -474,7 +500,7 @@ router.post('/invoices',
         success: true,
         message: 'Hisob-faktura muvaffaqiyatli yaratildi',
         data: {
-          ...invoice[0].toObject(),
+          invoice: invoice[0].toObject(),
           items: invoiceItems,
           revisit_discount: revisitDiscount,
           revisit_discount_reason: revisitDiscountReason

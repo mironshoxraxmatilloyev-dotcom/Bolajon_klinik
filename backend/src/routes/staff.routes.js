@@ -32,10 +32,12 @@ router.get('/', authenticate, async (req, res, next) => {
     res.json({
       success: true,
       data: staff.map(s => ({
+        _id: s._id,
         id: s._id,
         first_name: s.first_name,
         last_name: s.last_name,
         middle_name: s.middle_name,
+        full_name: `${s.first_name} ${s.last_name}`,
         email: s.email,
         phone: s.phone,
         role: s.role,

@@ -58,6 +58,13 @@ const CashierAdvanced = () => {
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [doctorSelectionMode, setDoctorSelectionMode] = useState(''); // 'queue' or 'onduty'
   
+  // Laboratoriya uchun state'lar
+  const [selectedLaborant, setSelectedLaborant] = useState(null);
+  const [allLaborants, setAllLaborants] = useState([]);
+  const [showLaborantModal, setShowLaborantModal] = useState(false);
+  const [hasLabServices, setHasLabServices] = useState(false);
+  const [hasNonLabServices, setHasNonLabServices] = useState(false);
+  
   // Patient Creation State
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [patientForm, setPatientForm] = useState({
@@ -162,9 +169,13 @@ const CashierAdvanced = () => {
     loadStats(); // Statistikani yuklash
     loadOnDutyDoctors(); // Dejur shifokorlarni yuklash
     loadAllDoctors(); // Barcha shifokorlarni yuklash
+    loadAllLaborants(); // Barcha laborantlarni yuklash
     
     // Clear any cached service data
     setInvoiceItems([]);
+    
+    // Laboratoriya kategoriyasini avtomatik ochish
+    setExpandedCategories({ 'Laboratoriya': true });
   }, []);
 
   // Remove the useEffect that was causing slow typing
@@ -174,18 +185,17 @@ const CashierAdvanced = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statsData, invoicesData, transactionsData, servicesData, patientsData] = await Promise.all([
+      const [statsData, invoicesData, transactionsData, patientsData] = await Promise.all([
         billingService.getStats(),
         billingService.getInvoices({ limit: 20 }),
         billingService.getTransactions({ limit: 10 }),
-        servicesService.getServices(),
         api.get('/patients/search', { params: { q: '', limit: 100 } })
       ]);
       
       if (statsData.success) setStats(statsData.data);
       if (invoicesData.success) setInvoices(invoicesData.data);
       if (transactionsData.success) setRecentTransactions(transactionsData.data);
-      if (servicesData.success) setServices(servicesData.data);
+      // setServices ni olib tashladik - faqat loadServices ishlatiladi
       if (patientsData.data.success) setSearchResults(patientsData.data.data);
     } catch (error) {
       console.error('Load data error:', error);
@@ -196,14 +206,57 @@ const CashierAdvanced = () => {
 
   const loadServices = async () => {
     try {
-      console.log('Loading services...');
-      const servicesData = await servicesService.getServices();
-      console.log('Services loaded:', servicesData);
+      console.log('=== LOADING SERVICES START ===');
       
-      if (servicesData.success) {
-        // Barcha xizmatlarni ko'rsatish (o'chirilganlar database'dan butunlay o'chiriladi)
-        setServices(servicesData.data);
+      let allServices = [];
+      
+      // 1. Billing xizmatlarini yuklash
+      try {
+        const servicesData = await servicesService.getServices();
+        console.log('Billing services response:', servicesData);
+        
+        if (servicesData.success && servicesData.data) {
+          allServices = [...servicesData.data];
+          console.log('Billing services count:', allServices.length);
+        }
+      } catch (billingError) {
+        console.error('Load billing services error:', billingError);
       }
+      
+      // 2. Laboratoriya testlarini yuklash
+      try {
+        console.log('Loading lab tests...');
+        const labTestsResponse = await api.get('/laboratory/tests');
+        console.log('Lab tests response:', labTestsResponse.data);
+        
+        if (labTestsResponse.data.success && labTestsResponse.data.data) {
+          // Lab testlarni xizmat formatiga o'tkazish
+          const labServices = labTestsResponse.data.data.map(test => ({
+            _id: test._id || test.id,
+            id: test._id || test.id,
+            name: test.name,
+            category: 'Laboratoriya',
+            price: test.price || 0,
+            description: test.description || '',
+            is_active: test.is_active !== false
+          }));
+          
+          console.log('Lab services converted:', labServices.length, 'tests');
+          allServices = [...allServices, ...labServices];
+        }
+      } catch (labError) {
+        console.error('Load lab tests error:', labError);
+        // Lab testlar yuklanmasa ham davom etamiz
+      }
+      
+      console.log('=== FINAL SERVICES ===');
+      console.log('Total services:', allServices.length);
+      console.log('All categories:', [...new Set(allServices.map(s => s.category))]);
+      
+      // State'ni yangilash
+      setServices(allServices);
+      
+      console.log('=== LOADING SERVICES END ===');
     } catch (error) {
       console.error('Load services error:', error);
       showAlert('Xizmatlarni yuklashda xatolik', 'error', 'Xatolik');
@@ -212,34 +265,54 @@ const CashierAdvanced = () => {
 
   // Xizmatlarni kategoriya bo'yicha guruhlash
   const groupServicesByCategory = () => {
-    // Kategoriyalarni qattiq belgilash
-    const CATEGORIES = [
-      "Shifokor ko'rigi",
-      "Kunduzgi muolaja",
-      "Laboratoriya xizmatlari",
-      "Fizioterapiya xizmatlari",
-      "Boshqa"
-    ];
+    console.log('=== GROUPING SERVICES ===');
+    console.log('Total services to group:', services.length);
+    console.log('Services:', services.map(s => ({ name: s.name, category: s.category })));
     
     const grouped = {};
     
-    // Avval barcha kategoriyalarni bo'sh massiv bilan yaratish
-    CATEGORIES.forEach(category => {
-      grouped[category] = [];
-    });
-    
     // Xizmatlarni tegishli kategoriyalarga joylashtirish
     services.forEach(service => {
-      const category = service.category || 'Boshqa';
-      if (grouped[category]) {
-        grouped[category].push(service);
-      } else {
-        // Agar kategoriya ro'yxatda bo'lmasa, "Boshqa"ga qo'shish
-        grouped['Boshqa'].push(service);
+      let category = service.category || 'Boshqa';
+      
+      // "Laboratoriya xizmatlari" ni "Laboratoriya" ga o'tkazish
+      if (category === 'Laboratoriya xizmatlari') {
+        console.log(`Converting category for ${service.name}: "Laboratoriya xizmatlari" -> "Laboratoriya"`);
+        category = 'Laboratoriya';
+      }
+      
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(service);
+    });
+    
+    console.log('Grouped categories:', Object.keys(grouped).map(cat => `${cat}: ${grouped[cat].length}`));
+    
+    // Kategoriyalarni tartiblash: Laboratoriya birinchi, keyin qolganlari
+    const sortedGrouped = {};
+    const categoryOrder = ['Laboratoriya', 'Shifokor ko\'rigi', 'Kunduzgi muolaja', 'Fizioterapiya xizmatlari'];
+    
+    // Avval tartiblangan kategoriyalarni qo'shish
+    categoryOrder.forEach(cat => {
+      if (grouped[cat] && grouped[cat].length > 0) {
+        sortedGrouped[cat] = grouped[cat];
+        console.log(`Added category "${cat}" with ${grouped[cat].length} services`);
       }
     });
     
-    return grouped;
+    // Keyin qolgan kategoriyalarni qo'shish
+    Object.keys(grouped).forEach(cat => {
+      if (!categoryOrder.includes(cat) && grouped[cat].length > 0) {
+        sortedGrouped[cat] = grouped[cat];
+        console.log(`Added other category "${cat}" with ${grouped[cat].length} services`);
+      }
+    });
+    
+    console.log('=== GROUPING COMPLETE ===');
+    console.log('Final categories:', Object.keys(sortedGrouped));
+    
+    return sortedGrouped;
   };
 
   // Xizmatlarni filtrlash
@@ -346,6 +419,19 @@ const CashierAdvanced = () => {
     }
   };
 
+  const loadAllLaborants = async () => {
+    try {
+      const response = await api.get('/staff', {
+        params: { role: 'Laborant' }
+      });
+      if (response.data.success) {
+        setAllLaborants(response.data.data);
+      }
+    } catch (error) {
+      console.error('Load laborants error:', error);
+    }
+  };
+
   const searchPatients = async () => {
     try {
       const response = await api.get('/patients/search', {
@@ -396,41 +482,79 @@ const CashierAdvanced = () => {
   const addServiceToInvoice = (service) => {
     console.log('=== ADD SERVICE DEBUG ===');
     console.log('Service object:', service);
-    console.log('Service ID (_id):', service._id);
-    console.log('Service ID (id):', service.id);
     
     const serviceId = service._id || service.id;
-    console.log('Selected service ID:', serviceId);
     
-    // Check if service exists in current services list
-    const serviceExists = services.find(s => (s._id || s.id) === serviceId);
-    if (!serviceExists) {
-      console.error('Service not found in services list!');
-      showAlert('Bu xizmat topilmadi. Iltimos, sahifani yangilang.', 'error', 'Xatolik');
+    if (!serviceId) {
+      console.error('Service ID not found!');
+      showAlert('Xizmat ID topilmadi', 'error', 'Xatolik');
       return;
     }
     
+    console.log('Adding service with ID:', serviceId);
+    
     const existingItem = invoiceItems.find(item => item.service_id === serviceId);
     
+    let updatedItems;
     if (existingItem) {
-      setInvoiceItems(invoiceItems.map(item =>
+      // Miqdorni oshirish
+      updatedItems = invoiceItems.map(item =>
         item.service_id === serviceId
           ? { ...item, quantity: item.quantity + 1 }
           : item
-      ));
+      );
+      setInvoiceItems(updatedItems);
     } else {
-      setInvoiceItems([...invoiceItems, {
+      // Yangi xizmat qo'shish
+      const newItem = {
         service_id: serviceId,
         description: service.name,
         quantity: 1,
         unit_price: parseFloat(service.price) || 0,
-        discount_percentage: 0
-      }]);
+        discount_percentage: 0,
+        category: service.category || 'Boshqa'
+      };
+      updatedItems = [...invoiceItems, newItem];
+      setInvoiceItems(updatedItems);
+    }
+    
+    // Har doim laboratoriya xizmatlarini tekshirish
+    checkForLabServices(updatedItems);
+    
+    console.log('Service added successfully');
+  };
+
+  // Laboratoriya xizmatlarini tekshirish
+  const checkForLabServices = (items) => {
+    const hasLab = items.some(item => item.category === 'Laboratoriya');
+    const hasNonLab = items.some(item => item.category !== 'Laboratoriya');
+    
+    console.log('Checking services:', { 
+      items, 
+      hasLab, 
+      hasNonLab,
+      categories: items.map(i => i.category)
+    });
+    
+    setHasLabServices(hasLab);
+    setHasNonLabServices(hasNonLab);
+    
+    // Agar laboratoriya xizmati bo'lmasa, laborantni tozalash
+    if (!hasLab && selectedLaborant) {
+      setSelectedLaborant(null);
+    }
+    
+    // Agar laboratoriya bo'lmagan xizmat bo'lmasa, shifokorni tozalash
+    if (!hasNonLab && selectedDoctor) {
+      setSelectedDoctor(null);
+      setDoctorSelectionMode('');
     }
   };
 
   const removeServiceFromInvoice = (serviceId) => {
-    setInvoiceItems(invoiceItems.filter(item => item.service_id !== serviceId));
+    const updatedItems = invoiceItems.filter(item => item.service_id !== serviceId);
+    setInvoiceItems(updatedItems);
+    checkForLabServices(updatedItems); // Laboratoriya xizmatlarini qayta tekshirish
   };
 
   const updateItemQuantity = (serviceId, quantity) => {
@@ -494,6 +618,14 @@ const CashierAdvanced = () => {
   };
 
   const handleCreateInvoice = async () => {
+    console.log('=== HANDLE CREATE INVOICE START ===');
+    console.log('selectedPatient:', selectedPatient);
+    console.log('invoiceItems:', invoiceItems);
+    console.log('hasLabServices:', hasLabServices);
+    console.log('hasNonLabServices:', hasNonLabServices);
+    console.log('selectedLaborant:', selectedLaborant);
+    console.log('selectedDoctor:', selectedDoctor);
+    
     if (!selectedPatient) {
       showAlert('Iltimos, bemorni tanlang', 'warning', 'Ogohlantirish');
       return;
@@ -504,8 +636,14 @@ const CashierAdvanced = () => {
       return;
     }
 
-    // Shifokor biriktirish yoki navbatga qo'shish majburiy
-    if (!selectedDoctor) {
+    // Laboratoriya xizmatlari uchun laborant majburiy
+    if (hasLabServices && !selectedLaborant) {
+      showAlert('Laboratoriya xizmatlari uchun laborantni tanlang', 'warning', 'Ogohlantirish');
+      return;
+    }
+
+    // Boshqa xizmatlar uchun shifokor majburiy
+    if (hasNonLabServices && !selectedDoctor) {
       showAlert('Iltimos, shifokor biriktiring yoki navbatga qo\'shing', 'warning', 'Ogohlantirish');
       return;
     }
@@ -521,34 +659,9 @@ const CashierAdvanced = () => {
 
       console.log('=== INVOICE ITEMS DEBUG ===');
       console.log('Invoice items:', invoiceItems);
-      console.log('Available services:', services.map(s => ({ id: s._id || s.id, name: s.name })));
-
-      // Validate all services exist
-      const validItems = [];
-      const invalidItems = [];
-      
-      for (const item of invoiceItems) {
-        const serviceExists = services.find(s => (s._id || s.id) === item.service_id);
-        if (serviceExists) {
-          validItems.push(item);
-        } else {
-          invalidItems.push(item);
-          console.error('Invalid service:', item);
-        }
-      }
-      
-      if (invalidItems.length > 0) {
-        showAlert(
-          `${invalidItems.length} ta eski xizmat topilmadi va o'chirildi. Iltimos, qaytadan xizmat tanlang.`,
-          'warning',
-          'Ogohlantirish'
-        );
-        setInvoiceItems(validItems);
-        return;
-      }
 
       // Faqat kerakli maydonlarni yuborish
-      const items = validItems.map(item => {
+      const items = invoiceItems.map(item => {
         console.log('Processing item:', item);
         return {
           service_id: item.service_id,
@@ -567,18 +680,79 @@ const CashierAdvanced = () => {
         notes: notes || ''
       };
 
-      // Shifokor majburiy
-      invoiceData.doctor_id = selectedDoctor;
+      // Shifokor (agar boshqa xizmatlar bo'lsa)
+      if (hasNonLabServices && selectedDoctor) {
+        invoiceData.doctor_id = selectedDoctor;
+      }
 
       console.log('Invoice data to send:', invoiceData);
 
       const response = await billingService.createInvoice(invoiceData);
 
+      console.log('Invoice created:', response);
+      console.log('Response data:', response.data);
+      console.log('Invoice object:', response.data?.invoice);
+      console.log('hasLabServices:', hasLabServices);
+      console.log('selectedLaborant:', selectedLaborant);
+
       if (response.success) {
+        // Agar laboratoriya xizmatlari bo'lsa, lab order yaratish
+        let labOrdersCreated = false;
+        if (hasLabServices && selectedLaborant) {
+          try {
+            const labItems = invoiceItems.filter(item => item.category === 'Laboratoriya');
+            
+            console.log('Creating lab orders for', labItems.length, 'tests');
+            console.log('Lab items:', labItems);
+            
+            // Har bir test uchun alohida buyurtma yaratish
+            for (const labItem of labItems) {
+              const labOrderData = {
+                patient_id: patient.id,
+                test_id: labItem.service_id,
+                laborant_id: selectedLaborant,
+                invoice_id: response.data?.invoice?._id || response.data?.invoice?.id || response.data?.id,
+                priority: 'normal',
+                notes: notes || ''
+              };
+
+              console.log('Creating lab order:', labOrderData);
+              
+              // Agar invoice_id yo'q bo'lsa, xatolik
+              if (!labOrderData.invoice_id) {
+                console.error('Invoice ID not found in response:', response.data);
+                throw new Error('Invoice ID topilmadi');
+              }
+              
+              const labResponse = await api.post('/laboratory/orders', labOrderData);
+              
+              if (labResponse.data.success) {
+                console.log('Lab order created successfully for test:', labItem.description);
+                labOrdersCreated = true;
+              }
+            }
+          } catch (labError) {
+            console.error('Lab order creation error:', labError);
+            console.error('Lab error response:', labError.response?.data);
+            // Lab order xatosi bo'lsa ham, invoice yaratilgan
+            showAlert('Hisob-faktura yaratildi, lekin laboratoriya buyurtmasida xatolik: ' + (labError.response?.data?.message || labError.message), 'warning', 'Ogohlantirish');
+            return; // Xatolik bo'lsa, davom etmaymiz
+          }
+        } else {
+          console.log('Lab order NOT created. Reason:', {
+            hasLabServices,
+            selectedLaborant,
+            invoiceItems: invoiceItems.map(i => ({ desc: i.description, cat: i.category }))
+          });
+        }
+
         // Qayta qabul chegirmasi haqida xabar
         let message = 'Hisob-faktura muvaffaqiyatli yaratildi!';
         if (response.data?.revisit_discount > 0) {
           message += `\n\n🎉 ${response.data.revisit_discount_reason}`;
+        }
+        if (labOrdersCreated) {
+          message += '\n\nLaboratoriya buyurtmasi yaratildi.';
         }
         
         showAlert(message, 'success', 'Muvaffaqiyatli');
@@ -588,7 +762,11 @@ const CashierAdvanced = () => {
         setDiscount(0);
         setNotes('');
         setPatientSearch('');
-        setSelectedDoctor(null); // Shifokorni ham reset qilish
+        setSelectedDoctor(null);
+        setSelectedLaborant(null);
+        setHasLabServices(false);
+        setHasNonLabServices(false);
+        setDoctorSelectionMode('');
         await loadInvoices(); // Hisob-fakturalarni qayta yuklash
         await loadTransactions(); // Tranzaksiyalarni qayta yuklash
         await loadStats(); // Statistikani qayta yuklash
@@ -1256,7 +1434,7 @@ const CashierAdvanced = () => {
                 </div>
 
                 {/* Doctor Selection Buttons */}
-                {invoiceItems.length > 0 && selectedPatient && (
+                {invoiceItems.length > 0 && selectedPatient && hasNonLabServices && (
                   <div className="space-y-2 sm:space-y-3">
                     <label className="block text-sm sm:text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                       Shifokor biriktirish <span className="text-red-500">*</span>
@@ -1320,6 +1498,66 @@ const CashierAdvanced = () => {
                             Bugun {onDutyDoctors.length} ta shifokor navbatda
                           </p>
                         )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Laborant Selection */}
+                {invoiceItems.length > 0 && selectedPatient && hasLabServices && (
+                  <div className="space-y-2 sm:space-y-3">
+                    <label className="block text-sm sm:text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                      Laborant biriktirish <span className="text-red-500">*</span>
+                    </label>
+                    
+                    {selectedLaborant ? (
+                      <div className="space-y-2">
+                        <div className="p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg sm:rounded-lg sm:rounded-xl border border-purple-200 dark:border-purple-800">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 sm:gap-2 sm:gap-3">
+                              <span className="material-symbols-outlined text-purple-600">science</span>
+                              <div>
+                                <p className="font-semibold text-purple-900 dark:text-purple-100">
+                                  {allLaborants.find(l => l._id === selectedLaborant)?.full_name || 'Laborant'}
+                                </p>
+                                <p className="text-xs text-purple-700 dark:text-purple-300">
+                                  {allLaborants.find(l => l._id === selectedLaborant)?.phone || 'Telefon yo\'q'}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setSelectedLaborant(null)}
+                              className="text-red-600 hover:text-red-700"
+                              title="Laborantni olib tashlash"
+                            >
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowLaborantModal(true)}
+                          className="w-full px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-semibold hover:bg-purple-200 dark:hover:bg-purple-900/40 flex items-center justify-center gap-2"
+                        >
+                          <span className="material-symbols-outlined">swap_horiz</span>
+                          Laborantni o'zgartirish
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setShowLaborantModal(true)}
+                          className="w-full px-4 sm:px-4 sm:px-6 lg:px-4 sm:px-6 lg:px-8 py-2 sm:py-3 bg-purple-500 text-white rounded-lg sm:rounded-lg sm:rounded-xl text-sm sm:text-sm sm:text-base font-semibold hover:bg-purple-600 flex items-center justify-center gap-2 sm:gap-2 sm:gap-3"
+                        >
+                          <span className="material-symbols-outlined">science</span>
+                          Laborant tanlash
+                        </button>
+                        
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg sm:rounded-lg sm:rounded-xl border border-yellow-200 dark:border-yellow-800">
+                          <p className="text-xs text-yellow-800 dark:text-yellow-200 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm sm:text-sm sm:text-base">warning</span>
+                            Laboratoriya xizmatlari uchun laborant tanlash majburiy
+                          </p>
+                        </div>
                       </>
                     )}
                   </div>
@@ -1481,7 +1719,12 @@ const CashierAdvanced = () => {
 
                 <button
                   onClick={handleCreateInvoice}
-                  disabled={!selectedPatient || invoiceItems.length === 0 || !selectedDoctor}
+                  disabled={
+                    !selectedPatient || 
+                    invoiceItems.length === 0 || 
+                    (hasLabServices && !selectedLaborant) ||
+                    (hasNonLabServices && !selectedDoctor)
+                  }
                   className="w-full mt-4 px-4 sm:px-4 sm:px-6 lg:px-4 sm:px-6 lg:px-8 py-2 sm:py-3 bg-primary text-white rounded-lg sm:rounded-lg sm:rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-2 sm:gap-3"
                 >
                   <span className="material-symbols-outlined">check_circle</span>
@@ -1503,12 +1746,17 @@ const CashierAdvanced = () => {
                 </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
-                  {invoices.map(invoice => (
+                  {invoices.map(invoice => {
+                    // Xizmatlar nomini olish
+                    const serviceNames = invoice.items?.map(item => item.description || item.service_name).join(', ') || 'Xizmatlar';
+                    const shortServiceName = serviceNames.length > 60 ? serviceNames.substring(0, 60) + '...' : serviceNames;
+                    
+                    return (
                     <div key={invoice.id} className="bg-gray-50 dark:bg-gray-800 rounded-lg sm:rounded-lg sm:rounded-xl p-3 sm:p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 sm:gap-3">
-                            <p className="font-bold text-primary">{invoice.invoice_number}</p>
+                            <p className="font-bold text-lg text-gray-900 dark:text-white">{shortServiceName}</p>
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                               invoice.payment_status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
                               invoice.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
@@ -1521,7 +1769,9 @@ const CashierAdvanced = () => {
                           <p className="text-sm sm:text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                             {invoice.first_name} {invoice.last_name} • {invoice.patient_number}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">{formatDate(invoice.created_at)}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {invoice.invoice_number} • {formatDate(invoice.created_at)}
+                          </p>
                         </div>
                         
                         <div className="text-right">
@@ -1567,7 +1817,7 @@ const CashierAdvanced = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -1658,6 +1908,7 @@ const CashierAdvanced = () => {
                   className="px-4 sm:px-4 sm:px-6 lg:px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="all">Barcha kategoriyalar</option>
+                  <option value="Laboratoriya">Laboratoriya</option>
                   <option value="Shifokor ko'rigi">Shifokor ko'rigi</option>
                   <option value="Kunduzgi muolaja">Kunduzgi muolaja</option>
                   <option value="Laboratoriya xizmatlari">Laboratoriya xizmatlari</option>
@@ -1763,9 +2014,9 @@ const CashierAdvanced = () => {
               required
             >
               <option value="">Kategoriya tanlang</option>
+              <option value="Laboratoriya">Laboratoriya</option>
               <option value="Shifokor ko'rigi">Shifokor ko'rigi</option>
               <option value="Kunduzgi muolaja">Kunduzgi muolaja</option>
-              <option value="Laboratoriya xizmatlari">Laboratoriya xizmatlari</option>
               <option value="Fizioterapiya xizmatlari">Fizioterapiya xizmatlari</option>
               <option value="Boshqa">Boshqa</option>
             </select>
@@ -2302,6 +2553,56 @@ const CashierAdvanced = () => {
               {doctorSelectionMode === 'onduty' ? 'Biriktirish' : 'Navbatga qo\'shish'}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Laborant Selection Modal */}
+      <Modal
+        isOpen={showLaborantModal}
+        onClose={() => setShowLaborantModal(false)}
+        title="Laborant tanlash"
+      >
+        <div className="space-y-4">
+          {allLaborants.length === 0 ? (
+            <div className="text-center py-8">
+              <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-700 mb-2">
+                science
+              </span>
+              <p className="text-gray-500 dark:text-gray-400">Laborantlar topilmadi</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+              {allLaborants.map(laborant => (
+                <button
+                  key={laborant._id}
+                  onClick={() => {
+                    setSelectedLaborant(laborant._id);
+                    setShowLaborantModal(false);
+                  }}
+                  className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-500 border-2 border-transparent transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="size-12 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">
+                        science
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {laborant.full_name}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {laborant.phone || 'Telefon yo\'q'}
+                      </p>
+                    </div>
+                    <span className="material-symbols-outlined text-gray-400">
+                      chevron_right
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

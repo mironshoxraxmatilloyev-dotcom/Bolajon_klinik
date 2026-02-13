@@ -231,6 +231,15 @@ npm test
 
 Backend utility scriptlar `backend/scripts/` papkasida. Batafsil ma'lumot uchun [backend/scripts/README.md](backend/scripts/README.md) ga qarang.
 
+## 📚 Hujjatlar
+
+- [📋 Summary](SUMMARY.md) - Loyiha tozalash va optimizatsiya yakuniy hisoboti
+- [🔌 API Documentation](API_DOCUMENTATION.md) - Backend API hujjati
+- [🤝 Contributing Guide](CONTRIBUTING.md) - Kod standartlari va best practices
+- [📊 Optimization Report](OPTIMIZATION_REPORT.md) - Performance tahlil va optimizatsiya hisoboti
+- [🧹 Cleanup Plan](CLEANUP.md) - Kod tozalash rejasi va progress
+- [📝 Backend Scripts](backend/scripts/README.md) - Utility scriptlar
+
 ## 🤝 Contributing
 
 1. Fork qiling
