@@ -1,9 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* CRITICAL: Hide Material Symbols text until font loads */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined', sans-serif !important;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+  /* Hide text completely */
+  visibility: hidden !important;
+  font-size: 0 !important;
+  color: transparent !important;
+  text-indent: -9999px !important;
+  overflow: hidden !important;
+  display: inline-block !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Show icons when fonts are loaded */
+.fonts-loaded .material-symbols-outlined {
+  visibility: visible !important;
+  font-size: 24px !important;
+  color: inherit !important;
+  text-indent: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  position: static !important;
+  left: auto !important;
+}
 
 @layer base {
   /* Custom Scrollbar - Minimalistik va deyarli ko'rinmas */
@@ -144,10 +171,7 @@
   }
 }
 
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  user-select: none;
-}
+/* Remove duplicate Material Symbols styles - moved to top of file */
 
 body {
   font-family: 'Inter', sans-serif;

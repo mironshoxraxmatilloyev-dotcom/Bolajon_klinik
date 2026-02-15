@@ -140,51 +140,68 @@ router.get('/stats', authenticate, async (req, res) => {
 router.get('/treatments', authenticate, async (req, res) => {
   try {
     const nurseId = req.user._id || req.user.id;
-    const { status, floor } = req.query;
+    const { status, floor, limit = 100, skip = 0 } = req.query; // Add pagination
     
-    console.log('=== GET NURSE TREATMENTS (ALL NURSES SEE ALL TREATMENTS) ===');
-    console.log('Nurse ID:', nurseId);
-    console.log('Status filter:', status);
+    console.log('=== GET NURSE TREATMENTS (OPTIMIZED) ===');
     
-    // Barcha muolajalarni olish - nurse_id filter yo'q
-    // Hamma hamshiralar barcha muolajalarni ko'radi
+    // Build query
     const query = {};
-    
     if (status && status !== 'all') {
       query.status = status;
     }
     
-    console.log('Query:', JSON.stringify(query));
-    console.log('📢 Fetching ALL treatments for ALL nurses');
+    // Optimize: Only select needed fields
+    const selectFields = 'title medication_name dosage scheduled_time status task_type patient_id nurse_id admission_id prescription_id total_doses completed_doses';
     
-    // Get both Tasks (urgent/emergency) and TreatmentSchedules (regular)
+    // Get both Tasks and TreatmentSchedules with optimized queries
     const [tasks, treatmentSchedules] = await Promise.all([
       Task.find(query)
+        .select(selectFields)
         .populate('patient_id', 'first_name last_name patient_number')
-        .populate('assigned_by', 'first_name last_name')
         .populate('nurse_id', 'first_name last_name')
-        .populate('admission_id')
         .populate({
           path: 'prescription_id',
+          select: 'prescription_number diagnosis prescription_type medications doctor_id',
           populate: {
             path: 'doctor_id',
             select: 'first_name last_name specialization'
           }
         })
+        .populate({
+          path: 'admission_id',
+          select: 'admission_type room_id bed_id',
+          populate: [
+            { path: 'room_id', select: 'room_number room_name' },
+            { path: 'bed_id', select: 'bed_number' }
+          ]
+        })
         .sort({ scheduled_time: 1 })
+        .limit(parseInt(limit))
+        .skip(parseInt(skip))
         .lean(),
       TreatmentSchedule.find(query)
+        .select(selectFields)
         .populate('patient_id', 'first_name last_name patient_number')
         .populate('nurse_id', 'first_name last_name')
-        .populate('admission_id')
         .populate({
           path: 'prescription_id',
+          select: 'prescription_number diagnosis prescription_type medications doctor_id',
           populate: {
             path: 'doctor_id',
             select: 'first_name last_name specialization'
           }
         })
+        .populate({
+          path: 'admission_id',
+          select: 'admission_type room_id bed_id',
+          populate: [
+            { path: 'room_id', select: 'room_number room_name' },
+            { path: 'bed_id', select: 'bed_number' }
+          ]
+        })
         .sort({ scheduled_time: 1 })
+        .limit(parseInt(limit))
+        .skip(parseInt(skip))
         .lean()
     ]);
     

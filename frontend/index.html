@@ -22,6 +22,18 @@
     
     <title>Bolajon Klinika - Zamonaviy Tibbiy Xizmatlar</title>
     
+    <!-- CRITICAL: Preconnect to Google Fonts ASAP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- CRITICAL: Load Material Symbols Font IMMEDIATELY (blocking) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" />
+    
+    <!-- Load Inter Font (non-blocking) -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" /></noscript>
+    
     <!-- Performance Optimization -->
     <!-- DNS Prefetch - API server -->
     <link rel="dns-prefetch" href="http://localhost:5000" />
@@ -55,9 +67,70 @@
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
+      
+      /* Material Symbols - FORCE HIDE TEXT */
+      .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        font-weight: normal;
+        font-style: normal;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: 'liga';
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        user-select: none;
+        /* FORCE HIDE - multiple methods */
+        visibility: hidden !important;
+        font-size: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+      }
+      
+      /* Show icons ONLY when font is loaded */
+      .fonts-loaded .material-symbols-outlined {
+        visibility: visible !important;
+        font-size: 24px !important;
+        width: auto !important;
+        height: auto !important;
+        position: static !important;
+        left: auto !important;
+      }
+      
+      /* Placeholder while loading - reserve space */
+      .material-symbols-outlined::after {
+        content: '';
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background: rgba(156, 163, 175, 0.15);
+        border-radius: 4px;
+        vertical-align: middle;
+        position: relative;
+        left: 9999px;
+      }
+      
+      .fonts-loaded .material-symbols-outlined::after {
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <!-- Add fonts-loaded class immediately to prevent FOUC -->
+    <script>
+      // Immediately add fonts-loaded class to prevent text flash
+      document.documentElement.classList.add('fonts-loaded');
+    </script>
+    
     <!-- Instant loading feedback -->
     <div id="root">
       <div class="loading-screen">

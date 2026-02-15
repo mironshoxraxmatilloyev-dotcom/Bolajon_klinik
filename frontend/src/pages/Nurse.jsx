@@ -136,33 +136,33 @@ const Nurse = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setStatusFilter('all')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+          className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
             statusFilter === 'all'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              ? 'bg-primary text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
           Barchasi
         </button>
         <button
           onClick={() => setStatusFilter('pending')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+          className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
             statusFilter === 'pending'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              ? 'bg-primary text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
           Kutilmoqda
         </button>
         <button
           onClick={() => setStatusFilter('completed')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+          className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
             statusFilter === 'completed'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+              ? 'bg-primary text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
           Yakunlangan
@@ -180,11 +180,11 @@ const Nurse = () => {
         ) : (
           <div className="space-y-3 sm:space-y-4">
             {treatments.map((treatment) => (
-              <div key={treatment.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start justify-between mb-3">
+              <div key={treatment.id} className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-bold text-gray-900 dark:text-white">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">
                         {treatment.patient_name}
                       </p>
                       {getStatusBadge(treatment.status)}
@@ -245,14 +245,14 @@ const Nurse = () => {
                     )}
                   </div>
                   
-                  <div className="flex flex-col items-end gap-2 ml-4">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                       🕐 {formatTime(treatment.scheduled_time)}
                     </span>
                     {treatment.status === 'pending' && (
                       <button
                         onClick={() => handleOpenCompleteModal(treatment)}
-                        className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90"
+                        className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-primary text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-all"
                       >
                         Yakunlash
                       </button>

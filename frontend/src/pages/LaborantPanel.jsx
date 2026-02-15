@@ -754,7 +754,7 @@ export default function LaborantPanel() {
       {/* Tabs */}
       <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow-sm">
         <div className="border-b border-gray-200 dark:border-gray-700">
-          <div className="flex gap-2 sm:gap-2 sm:gap-3 px-4 sm:px-4 sm:px-6 lg:px-4 sm:px-6 lg:px-8 overflow-x-auto">
+          <div className="grid grid-cols-2 sm:flex sm:gap-3 px-2 sm:px-4 lg:px-8">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
               { id: 'orders', label: 'Buyurtmalar', icon: 'assignment' },
@@ -764,20 +764,20 @@ export default function LaborantPanel() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 sm:gap-2 sm:gap-3 px-4 sm:px-4 sm:px-6 lg:px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 px-2 sm:px-6 lg:px-8 py-2 sm:py-3 sm:py-4 border-b-2 transition-colors text-xs sm:text-sm lg:text-base ${
                   activeTab === tab.id
-                    ? 'border-primary text-primary font-semibold'
-                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900'
+                    ? 'border-primary text-primary font-semibold bg-primary/5'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <span className="material-symbols-outlined text-base sm:text-lg">{tab.icon}</span>
-                {tab.label}
+                <span className="text-[10px] sm:text-sm">{tab.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="p-3 sm:p-4 lg:p-6">
           {/* Orders Tab */}
           {activeTab === 'orders' && (
             <div className="space-y-3 sm:space-y-4">

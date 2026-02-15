@@ -4,6 +4,9 @@ import './index.css';
 import './i18n/config';
 import App from './App.jsx';
 
+// Font is loaded immediately via blocking CSS in index.html
+// No need for detection - fonts-loaded class is added immediately
+
 // Register Service Worker for PWA - DISABLED for development
 // if ('serviceWorker' in navigator) {
 //   window.addEventListener('load', () => {
