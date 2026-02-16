@@ -180,8 +180,8 @@ const DashboardLayout = ({ children }) => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 sm:px-8">
-          {/* Mobile Menu Button */}
+        <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 sm:px-8">
+          {/* Mobile Menu Button - left side */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="lg:hidden p-2 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors -ml-2"
@@ -189,6 +189,10 @@ const DashboardLayout = ({ children }) => {
             <span className="material-symbols-outlined">menu</span>
           </button>
 
+          {/* Spacer to push everything to the right */}
+          <div className="flex-1"></div>
+
+          {/* Right side - all elements pushed to the far right */}
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Notifications */}
             <div className="relative">
