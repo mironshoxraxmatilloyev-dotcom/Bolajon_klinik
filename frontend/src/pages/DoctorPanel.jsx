@@ -186,6 +186,8 @@ const DoctorPanel = () => {
       if (response.success) {
         console.log('My patients count:', response.data.length);
         console.log('My patients:', response.data);
+        console.log('WAITING patients:', response.data.filter(q => q.status === 'WAITING'));
+        console.log('WAITING count:', response.data.filter(q => q.status === 'WAITING').length);
         setMyQueue(response.data);
       }
     } catch (error) {
@@ -592,7 +594,7 @@ const DoctorPanel = () => {
             <div className="min-w-0">
               <p className="text-xs sm:text-sm sm:text-sm sm:text-base text-gray-600 dark:text-gray-400 truncate">{t('doctorPanel.waiting')}</p>
               <p className="text-xl sm:text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                {myQueue.filter(q => q.status === 'WAITING').length}
+                {myQueue.filter(q => q.status === 'WAITING' || q.status === 'CALLED').length}
               </p>
             </div>
           </div>
@@ -628,13 +630,13 @@ const DoctorPanel = () => {
       </div>
 
       {/* Alert - Kutayotgan bemorlar */}
-      {myQueue.filter(q => q.status === 'WAITING').length > 0 && (
+      {myQueue.filter(q => q.status === 'WAITING' || q.status === 'CALLED').length > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg sm:rounded-xl p-3 sm:p-3 sm:p-4">
           <div className="flex flex-col sm:flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <span className="material-symbols-outlined text-yellow-600 text-2xl sm:text-2xl sm:text-3xl flex-shrink-0">notifications_active</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm sm:text-sm sm:text-base text-gray-900 dark:text-white">
-                {t('doctorPanel.waitingPatientsAlert', { count: myQueue.filter(q => q.status === 'WAITING').length })}
+                Sizda {myQueue.filter(q => q.status === 'WAITING' || q.status === 'CALLED').length} ta kutayotgan bemor bor
               </p>
               <p className="text-xs sm:text-sm sm:text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                 {t('doctorPanel.goToQueuePage')}
@@ -661,7 +663,7 @@ const DoctorPanel = () => {
       </div>
 
       {/* Kutayotgan bemorlar ro'yxati */}
-      {myQueue.filter(q => q.status === 'WAITING').length > 0 && (
+      {myQueue.filter(q => q.status === 'WAITING' || q.status === 'CALLED').length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800">
           <div className="p-3 sm:p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
             <h2 className="text-base sm:text-base sm:text-lg font-bold text-gray-900 dark:text-white">{t('doctorPanel.waitingPatientsList')}</h2>
@@ -669,7 +671,7 @@ const DoctorPanel = () => {
           </div>
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {myQueue
-              .filter(q => q.status === 'WAITING')
+              .filter(q => q.status === 'WAITING' || q.status === 'CALLED')
               .sort((a, b) => a.queueNumber - b.queueNumber)
               .map((patient, index) => (
                 <div key={patient.id} className="p-3 sm:p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
